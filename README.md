@@ -82,7 +82,7 @@ Click **＋ Running program …** and pick the program (start it first), or choo
 | **⏻ Turn off** | the display goes off – set up once per display under *Displays → Turn off → Set up …* |
 
 - A program switches the displays when it comes **to the foreground**. Switching to a program that is not in the list keeps its color mode until it exits (turn this off under *General* to get the defaults back right away). Black and off only apply while the program is in front, so a second screen comes back as soon as you click something else.
-- **Path** only triggers when the program runs from exactly that folder – handy for generic names like `launcher.exe`.
+- A rule belongs to exactly the executable you picked (its folder is shown under the name). Two versions of a program side by side – say Photoshop 2024 and 2025 – are simply two rules, and generic names like `launcher.exe` don't trigger for every program that happens to use them.
 - A **grey row** points to a color mode or display that doesn't exist (anymore), e.g. after renaming a mode on the monitor. Hover it to see why.
 
 ### 2. Games

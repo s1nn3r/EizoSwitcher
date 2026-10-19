@@ -122,14 +122,14 @@ public sealed class SwitchEngine : IDisposable
         if (fg != null) app_ = fg;
         else if (app_ != null && !ForegroundWatcher.IsRunning(app_.Pid)) app_ = null;
 
-        var rules = app_ == null ? [] : s.Rules.Where(r => r.Enabled && Matches(r, app_)).ToList();
+        var rules = app_ == null ? [] : RulesFor(s, app_);
         string? game = app_ != null && s.Games.Enabled ? Games.Detect(app_, s.Games) : null;
 
         // a program with its own rule (or a game) takes over; it keeps its color modes until it exits
         if (rules.Count > 0 || game != null) (owner_, ownerGame_) = (app_, game);
         else if (owner_ != null && (!s.KeepModesUntilExit || !ForegroundWatcher.IsRunning(owner_.Pid))) (owner_, ownerGame_) = (null, null);
         bool background = owner_ != null && owner_.Pid != app_?.Pid;
-        var ownerRules = background ? s.Rules.Where(r => r.Enabled && Matches(r, owner_!)).ToList() : [];
+        var ownerRules = background ? RulesFor(s, owner_!) : [];
 
         // displays we disconnected are no longer listed by Windows – keep evaluating them
         var all = displays_.Displays.ToList();
@@ -183,10 +183,19 @@ public sealed class SwitchEngine : IDisposable
         return ("", "");
     }
 
-    private static bool Matches(ProcessRule r, ForegroundApp app) =>
-        r.MatchPath && !string.IsNullOrEmpty(r.ExePath)
-            ? string.Equals(app.Path, r.ExePath, StringComparison.OrdinalIgnoreCase)
-            : r.ProcessKey == app.Key;
+    /// <summary>
+    /// Rules for a program, in priority order. A rule belongs to exactly the executable it was created for, so two
+    /// versions of a program are two rules. By name only if the process path cannot be read (elevated processes),
+    /// for rules without a path, and for rules whose program has moved (updates into a versioned folder, e.g. Store
+    /// apps) – the latter only if no rule matches the path exactly.
+    /// </summary>
+    private static List<ProcessRule> RulesFor(AppSettings s, ForegroundApp app)
+    {
+        var byName = s.Rules.Where(r => r.Enabled && r.ProcessKey == app.Key).ToList();
+        if (string.IsNullOrEmpty(app.Path)) return byName;
+        var exact = byName.Where(r => string.Equals(r.ExePath, app.Path, StringComparison.OrdinalIgnoreCase)).ToList();
+        return exact.Count > 0 ? exact : [.. byName.Where(r => string.IsNullOrEmpty(r.ExePath) || !File.Exists(r.ExePath))];
+    }
 
     /// <returns>false = temporary failure, retry on the next tick.</returns>
     private bool Apply(DisplayInfo d, string action, string reason, AppSettings s, ref bool offChanged)

@@ -20,12 +20,11 @@ internal sealed class SettingsWindow : Window
         public required Border View;
         public required CheckBox Enabled;
         public required System.Windows.Controls.TextBox Name;
-        public required CheckBox MatchPath;
         public required Dictionary<string, ComboBox> Actions;
     }
 
     // name and display columns shrink down to their minimum before the table scrolls sideways
-    private const double NameWidth = 230, NameMin = 140, PathWidth = 46, ColWidth = 158, ColMin = 112, ColGap = 10;
+    private const double NameWidth = 230, NameMin = 140, ColWidth = 158, ColMin = 112, ColGap = 10;
 
     private readonly DisplayService displays_;
     private readonly GameDetector games_;
@@ -192,15 +191,12 @@ internal sealed class SettingsWindow : Window
         DefineColumns(header);
         void H(int col, UIElement e) { Grid.SetColumn(e, col); header.Children.Add(e); }
         H(2, Ui.Caption(L.T("Name", "Name"), false));
-        var pathHead = Ui.Caption(L.T("Pfad", "Path"), false);
-        pathHead.ToolTip = L.T("Nur auslösen, wenn das Programm aus genau diesem Ordner gestartet wurde", "Only trigger when the program runs from exactly this folder");
-        H(3, pathHead);
         for (int i = 0; i < cols_.Count; i++)
         {
             var head = new StackPanel { Opacity = cols_[i].Connected ? 1 : 0.5 };
             head.Children.Add(Ui.Strong(cols_[i].Name));
             head.Children.Add(Ui.Caption(ColSubtitle(cols_[i]), false));
-            H(4 + i, head);
+            H(3 + i, head);
         }
 
         rows_.Clear();
@@ -214,7 +210,7 @@ internal sealed class SettingsWindow : Window
         table.Children.Add(ruleTable_);
         var scroll = new ScrollViewer { Content = table, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled };
         table.HorizontalAlignment = HorizontalAlignment.Left;
-        double fixedWidth = 16 + 40 + 36 + PathWidth + 110;
+        double fixedWidth = 16 + 40 + 36 + 110;
         scroll.SizeChanged += (_, e) => table.Width = Math.Clamp(e.NewSize.Width,
             fixedWidth + NameMin + cols_.Count * (ColMin + ColGap), fixedWidth + NameWidth + cols_.Count * (ColWidth + ColGap));
         var card = Ui.Card(scroll, new Thickness(8, 12, 8, 8));
@@ -242,7 +238,6 @@ internal sealed class SettingsWindow : Window
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(NameWidth, GridUnitType.Star), MinWidth = NameMin, MaxWidth = NameWidth });
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(PathWidth) });
         foreach (var _ in cols_)
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ColWidth + ColGap, GridUnitType.Star), MinWidth = ColMin + ColGap, MaxWidth = ColWidth + ColGap });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
@@ -253,7 +248,7 @@ internal sealed class SettingsWindow : Window
         var grid = new Grid();
         DefineColumns(grid);
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // exe name under the name box
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // exe and folder under the name box
         void Put(int col, UIElement e) { Grid.SetColumn(e, col); grid.Children.Add(e); }
 
         var enabled = new CheckBox { IsChecked = rule.Enabled, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Left, ToolTip = L.T("Regel aktiv", "Rule enabled"), MinWidth = 0, Padding = new Thickness(0) };
@@ -264,27 +259,28 @@ internal sealed class SettingsWindow : Window
             : Dim(Ui.Icon(Icons.Apps, 20)));
 
         var name = new System.Windows.Controls.TextBox { Text = rule.Name, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0), ToolTip = rule.ExePath ?? rule.ExeName };
-        var exe = Ui.Caption(rule.ExeName, false);
+        // the folder tells two versions of a program apart (each has its own rule)
+        string? folder = Path.GetDirectoryName(rule.ExePath);
+        // (the last folder is what differs, e.g. "Adobe Photoshop 2025"; full path in the tooltip)
+        var exe = Ui.Caption(string.IsNullOrEmpty(folder) ? rule.ExeName : $"…\\{Path.GetFileName(folder)}\\{rule.ExeName}", false);
         exe.Margin = new Thickness(2, 2, 12, 0);
         exe.TextTrimming = TextTrimming.CharacterEllipsis;
         exe.ToolTip = rule.ExePath ?? rule.ExeName;
         Put(2, name);
         Grid.SetRow(exe, 1);
         Put(2, exe);
-        var matchPath = new CheckBox { IsChecked = rule.MatchPath, IsEnabled = !string.IsNullOrEmpty(rule.ExePath), VerticalAlignment = VerticalAlignment.Center, ToolTip = rule.ExePath, MinWidth = 0, Padding = new Thickness(0) };
-        Put(3, matchPath);
 
         var actions = new Dictionary<string, ComboBox>();
-        var row = new RuleRow { Rule = rule, View = null!, Enabled = enabled, Name = name, MatchPath = matchPath, Actions = actions };
+        var row = new RuleRow { Rule = rule, View = null!, Enabled = enabled, Name = name, Actions = actions };
         for (int i = 0; i < cols_.Count; i++)
         {
             var box = Ui.Combo(Options(cols_[i], special: true), rule.Actions.GetValueOrDefault(cols_[i].Id) ?? "", ColWidth, () => { UpdateRowState(row); Changed(); });
             box.Width = double.NaN; // follows the column width
             box.Margin = new Thickness(0, 0, ColGap, 0);
             actions[cols_[i].Id] = box;
-            Put(4 + i, box);
+            Put(3 + i, box);
         }
-        Put(4 + cols_.Count, Ui.Row(0,
+        Put(3 + cols_.Count, Ui.Row(0,
             Ui.IconButton(Icons.Up, L.T("Nach oben (höhere Priorität)", "Move up (higher priority)"), () => Move(row, -1)),
             Ui.IconButton(Icons.Down, L.T("Nach unten", "Move down"), () => Move(row, 1)),
             Ui.IconButton(Icons.Delete, L.T("Entfernen", "Remove"), () => Remove(row))));
@@ -294,8 +290,6 @@ internal sealed class SettingsWindow : Window
         row.View.MouseLeave += (_, _) => row.View.Background = Brushes.Transparent;
         enabled.Checked += (_, _) => { UpdateRowState(row); Changed(); };
         enabled.Unchecked += (_, _) => { UpdateRowState(row); Changed(); };
-        matchPath.Checked += (_, _) => Changed();
-        matchPath.Unchecked += (_, _) => Changed();
         name.TextChanged += (_, _) => Changed();
         rows_.Add(row);
         ruleTable_.Children.Add(row.View);
@@ -354,7 +348,10 @@ internal sealed class SettingsWindow : Window
     private void AddProgram(string exeName, string? path, string? description)
     {
         exeName = exeName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? exeName : exeName + ".exe";
-        var existing = rows_.FirstOrDefault(r => ProcessNames.Normalize(r.Rule.ExeName) == ProcessNames.Normalize(exeName));
+        // same executable = same rule; another version of the program (other folder) gets its own
+        var existing = rows_.FirstOrDefault(r => string.IsNullOrEmpty(r.Rule.ExePath) || string.IsNullOrEmpty(path)
+            ? ProcessNames.Normalize(r.Rule.ExeName) == ProcessNames.Normalize(exeName)
+            : string.Equals(r.Rule.ExePath, path, StringComparison.OrdinalIgnoreCase));
         if (existing != null) { existing.Name.Focus(); return; }
         AddRow(new ProcessRule { Name = description ?? Path.GetFileNameWithoutExtension(exeName), ExeName = exeName, ExePath = path });
         UpdateEmptyState();
@@ -697,7 +694,6 @@ internal sealed class SettingsWindow : Window
                 var r = row.Rule;
                 r.Enabled = row.Enabled.IsChecked == true;
                 r.Name = row.Name.Text.Trim();
-                r.MatchPath = row.MatchPath.IsChecked == true;
                 foreach (var (id, box) in row.Actions)
                 {
                     string t = Ui.Token(box);

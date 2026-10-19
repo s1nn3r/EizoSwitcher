@@ -133,19 +133,19 @@ internal static class Screenshots
         string? Pick(DisplayInfo d, params string[] prefs) =>
             d.Eizo == null ? null : prefs.FirstOrDefault(p => d.Eizo.IndexOf(p) >= 0) ?? d.Eizo.Modes.FirstOrDefault();
 
-        ProcessRule Rule(string name, string exe, Func<DisplayInfo, string?> action)
+        ProcessRule Rule(string name, string path, Func<DisplayInfo, string?> action)
         {
-            var r = new ProcessRule { Name = name, ExeName = exe };
+            var r = new ProcessRule { Name = name, ExeName = Path.GetFileName(path), ExePath = path };
             foreach (var d in displays.Displays)
                 if (action(d) is { } a) r.Actions[d.Id] = a;
             return r;
         }
 
-        s.Rules.Add(Rule("DaVinci Resolve", "Resolve.exe", d => Pick(d, "BT.709", "sRGB") ?? (d.Primary ? null : DisplayAction.Black)));
-        s.Rules.Add(Rule("Adobe Premiere Pro", "Adobe Premiere Pro.exe", d => Pick(d, "BT.709", "sRGB")));
-        s.Rules.Add(Rule("Adobe Photoshop", "Photoshop.exe", d => Pick(d, "CAL", "CAL1")));
-        s.Rules.Add(Rule("Adobe Lightroom Classic", "Lightroom.exe", d => d.IsEizo ? Pick(d, "CAL", "CAL1") : null));
-        s.Rules.Add(Rule(L.T("Altes Werkzeug", "Old tool"), "PrintTool.exe", d => d.IsEizo ? "Paper" : null));
+        s.Rules.Add(Rule("DaVinci Resolve", @"C:\Program Files\Blackmagic Design\DaVinci Resolve\Resolve.exe", d => Pick(d, "BT.709", "sRGB") ?? (d.Primary ? null : DisplayAction.Black)));
+        s.Rules.Add(Rule("Adobe Premiere Pro", @"C:\Program Files\Adobe\Adobe Premiere Pro 2025\Adobe Premiere Pro.exe", d => Pick(d, "BT.709", "sRGB")));
+        s.Rules.Add(Rule("Adobe Photoshop", @"C:\Program Files\Adobe\Adobe Photoshop 2025\Photoshop.exe", d => Pick(d, "CAL", "CAL1")));
+        s.Rules.Add(Rule("Adobe Lightroom Classic", @"C:\Program Files\Adobe\Adobe Lightroom Classic\Lightroom.exe", d => d.IsEizo ? Pick(d, "CAL", "CAL1") : null));
+        s.Rules.Add(Rule(L.T("Altes Werkzeug", "Old tool"), @"C:\Tools\PrintTool\PrintTool.exe", d => d.IsEizo ? "Paper" : null));
         s.Games.Actions = displays.Displays.ToDictionary(d => d.Id, d => d.Primary ? Pick(d, "sRGB") ?? "" : DisplayAction.Off);
         foreach (var d in displays.Displays)
         {

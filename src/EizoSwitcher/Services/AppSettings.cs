@@ -28,9 +28,8 @@ public sealed class ProcessRule
     public string Name { get; set; } = "";
     /// <summary>Executable file name, e.g. "Photoshop.exe".</summary>
     public string ExeName { get; set; } = "";
+    /// <summary>Full path; if known, only this executable matches (two versions of a program = two rules).</summary>
     public string? ExePath { get; set; }
-    /// <summary>Only match when the process runs from <see cref="ExePath"/>.</summary>
-    public bool MatchPath { get; set; }
     /// <summary>Display id -> action (see <see cref="DisplayAction"/>).</summary>
     public Dictionary<string, string> Actions { get; set; } = [];
 
