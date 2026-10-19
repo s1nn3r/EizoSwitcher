@@ -103,7 +103,6 @@
   "Pause automatic switching": "Automatisch schakelen pauzeren",
   "Primary display – blanked instead": "Hoofdscherm – wordt in plaats daarvan zwart",
   "Print the current mode only": "Alleen de huidige modus weergeven",
-  "Process names, one per line (without .exe).": "Procesnamen, één per regel (zonder .exe).",
   "Program switches are detected immediately; the interval only affects background checks.": "Programmawisselingen worden direct herkend; het interval geldt alleen voor controles op de achtergrond.",
   "Programs": "Programma's",
   "Programs Windows recognizes as games (Game Bar)": "Programma's die Windows als game herkent (Game Bar)",
@@ -183,5 +182,8 @@
   "Update now": "Nu bijwerken",
   "Version {0} is available – click here or use the tray menu to install it.": "Versie {0} is beschikbaar – klik hier of gebruik het systeemvakmenu om te installeren.",
   "View on GitHub": "Bekijken op GitHub",
-  "You have version {0}. Update now? EizoSwitcher restarts by itself afterwards.": "Je hebt versie {0}. Nu bijwerken? EizoSwitcher start daarna vanzelf opnieuw."
+  "You have version {0}. Update now? EizoSwitcher restarts by itself afterwards.": "Je hebt versie {0}. Nu bijwerken? EizoSwitcher start daarna vanzelf opnieuw.",
+  "\"{0}\" is no longer treated as a game.": "\"{0}\" wordt niet meer als spel behandeld.",
+  "Never treat \"{0}\" as a game": "\"{0}\" nooit als spel behandelen",
+  "These programs never trigger the game settings, not even in fullscreen. A false alarm can also be excluded right from the tray menu.": "Deze programma's activeren nooit de spelinstellingen, ook niet in volledig scherm. Een vals alarm kun je ook direct in het systeemvakmenu uitsluiten."
 }

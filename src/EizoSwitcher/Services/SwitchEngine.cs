@@ -49,6 +49,8 @@ public sealed class SwitchEngine : IDisposable
     /// <summary>Display id -> why its current action is active (program, game, default).</summary>
     public IReadOnlyDictionary<string, string> Reasons { get; private set; } = new Dictionary<string, string>();
     public string? ActiveGame { get; private set; }
+    /// <summary>Executable of <see cref="ActiveGame"/> ("Game.exe"), e.g. to exclude it.</summary>
+    public string? ActiveGameProcess { get; private set; }
     /// <summary>The program that currently decides (foreground, shell surfaces ignored).</summary>
     public string? ActiveProgram { get; private set; }
 
@@ -167,6 +169,7 @@ public sealed class SwitchEngine : IDisposable
         bool changed = game != ActiveGame || app_?.Name != ActiveProgram || reasons.Count != Reasons.Count
                        || reasons.Any(kv => Reasons.GetValueOrDefault(kv.Key) != kv.Value);
         ActiveGame = game;
+        ActiveGameProcess = game == null ? null : Path.GetFileName(app_?.Path) ?? app_?.Key;
         ActiveProgram = app_?.Name;
         Reasons = reasons;
         if (changed) StateChanged?.Invoke();

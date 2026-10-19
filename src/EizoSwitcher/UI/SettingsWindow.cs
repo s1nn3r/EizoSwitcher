@@ -377,7 +377,7 @@ internal sealed class SettingsWindow : Window
 
     private CheckBox gamesEnabled_ = null!, gExclusive_ = null!, gBorderless_ = null!, gWinList_ = null!, gLibraries_ = null!;
     private ListBox extraFolders_ = null!;
-    private System.Windows.Controls.TextBox exclusions_ = null!;
+    private ListBox exclusions_ = null!;
 
     private UIElement GamesPage()
     {
@@ -432,17 +432,70 @@ internal sealed class SettingsWindow : Window
         folders.Children.Add(folderButtons);
         items.Add(Ui.Expander(Icons.Folder, L.T("Spielebibliotheken", "Game libraries"), folders));
 
-        exclusions_ = new System.Windows.Controls.TextBox { Text = string.Join(Environment.NewLine, g.ExcludedProcesses), AcceptsReturn = true, Height = 180, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-        exclusions_.TextChanged += (_, _) => Changed();
+        exclusions_ = new ListBox { SelectionMode = SelectionMode.Extended, MinHeight = 40, MaxHeight = 240 };
+        // compact rows (the Fluent default is made for touch)
+        var compact = new Style(typeof(ListBoxItem), TryFindResource(typeof(ListBoxItem)) as Style);
+        compact.Setters.Add(new Setter(PaddingProperty, new Thickness(12, 3, 12, 3)));
+        compact.Setters.Add(new Setter(MinHeightProperty, 26.0));
+        exclusions_.ItemContainerStyle = compact;
+        SetExclusions(g.ExcludedProcesses);
+        exclusions_.KeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Delete) RemoveExclusions(); };
         var excl = new StackPanel();
-        excl.Children.Add(Ui.Caption(L.T("Prozessnamen, einer pro Zeile (ohne .exe).", "Process names, one per line (without .exe).")));
+        excl.Children.Add(Ui.Caption(L.T("Diese Programme lösen nie die Spiel-Einstellungen aus, auch im Vollbild nicht. Ein Fehlalarm lässt sich auch direkt im Tray-Menü ausnehmen.",
+                                         "These programs never trigger the game settings, not even in fullscreen. A false alarm can also be excluded right from the tray menu.")));
         excl.Children.Add(exclusions_);
-        var reset = Ui.Button(L.T("Liste zurücksetzen", "Reset list"), () => exclusions_.Text = string.Join(Environment.NewLine, GameSettings.DefaultExclusions), Icons.Reset);
-        reset.Margin = new Thickness(0, 8, 0, 0);
-        excl.Children.Add(reset);
+        var exclButtons = Ui.Row(8,
+            Ui.Button(L.T("Laufendes Programm …", "Running program …"), AddExclusionFromProcesses, Icons.Add),
+            Ui.Button(L.T("Programmdatei auswählen …", "Choose executable …"), AddExclusionFromFile, Icons.Folder),
+            Ui.Button(L.T("Entfernen", "Remove"), RemoveExclusions, Icons.Delete),
+            Ui.Button(L.T("Liste zurücksetzen", "Reset list"), () => { SetExclusions(GameSettings.DefaultExclusions); Changed(); }, Icons.Reset));
+        exclButtons.Margin = new Thickness(0, 8, 0, 0);
+        excl.Children.Add(exclButtons);
         items.Add(Ui.Expander(Icons.Blocked, L.T("Nie als Spiel behandeln", "Never treat as a game"), excl));
 
         return Ui.Page([.. items]);
+    }
+
+    private List<string> Exclusions => (List<string>)exclusions_.ItemsSource;
+
+    private void SetExclusions(IEnumerable<string> names) =>
+        exclusions_.ItemsSource = names.Select(ProcessNames.Base).Where(n => n.Length > 0)
+            .DistinctBy(ProcessNames.Normalize).Order(StringComparer.CurrentCultureIgnoreCase).ToList();
+
+    /// <summary>Adds a program to "never treat as a game" (also used by the tray menu while this window is open).</summary>
+    public void ExcludeGame(string process)
+    {
+        if (exclusions_ != null && pageCache_.ContainsKey(1))
+        {
+            SetExclusions(Exclusions.Append(process));
+            exclusions_.SelectedItem = Exclusions.FirstOrDefault(x => ProcessNames.Normalize(x) == ProcessNames.Normalize(process));
+            exclusions_.ScrollIntoView(exclusions_.SelectedItem);
+        }
+        else
+            work_.Games.ExcludedProcesses = [.. work_.Games.ExcludedProcesses.Append(ProcessNames.Base(process)).DistinctBy(ProcessNames.Normalize)];
+        Changed();
+    }
+
+    private void AddExclusionFromProcesses()
+    {
+        var picker = new ProcessPickerWindow { Owner = this };
+        if (picker.ShowDialog() == true)
+            foreach (var e in picker.Selected) ExcludeGame(e.ExeName);
+    }
+
+    private void AddExclusionFromFile()
+    {
+        var dlg = new OpenFileDialog { Title = L.T("Programm auswählen", "Choose program"), Filter = L.T("Programme", "Programs") + " (*.exe)|*.exe", Multiselect = true };
+        if (dlg.ShowDialog(this) != true) return;
+        foreach (var path in dlg.FileNames) ExcludeGame(path);
+    }
+
+    private void RemoveExclusions()
+    {
+        var selected = exclusions_.SelectedItems.Cast<string>().ToHashSet();
+        if (selected.Count == 0) return;
+        SetExclusions(Exclusions.Where(x => !selected.Contains(x)));
+        Changed();
     }
 
     private void AddFolder()
@@ -717,7 +770,7 @@ internal sealed class SettingsWindow : Window
                 if (t.Length == 0) g.Actions.Remove(id); else g.Actions[id] = t;
             }
             g.ExtraFolders = [.. (List<string>)extraFolders_.ItemsSource];
-            g.ExcludedProcesses = [.. exclusions_.Text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct(StringComparer.OrdinalIgnoreCase)];
+            g.ExcludedProcesses = [.. Exclusions];
         }
 
         if (pageCache_.ContainsKey(2))

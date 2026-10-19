@@ -7,12 +7,12 @@ namespace EizoSwitcher.UI;
 /// <summary>What the tray menu shows (snapshot).</summary>
 internal sealed record TrayMenuState(
     IReadOnlyList<DisplayInfo> Displays, Func<DisplayInfo, string> StateOf, IReadOnlyDictionary<string, string> Reasons,
-    string? ActiveGame, string? ActiveProgram, bool Paused, UpdateInfo? PendingUpdate);
+    string? ActiveGame, string? ActiveProgram, bool Paused, UpdateInfo? PendingUpdate, string? ActiveGameProcess = null);
 
 /// <summary>What the tray menu can do.</summary>
 internal sealed record TrayMenuActions(
     Action<DisplayInfo, int> SetMode, Action<DisplayInfo> Blank, Action TogglePause, Action ShowSettings,
-    Action CheckForUpdates, Action InstallUpdate, Action Exit);
+    Action CheckForUpdates, Action InstallUpdate, Action Exit, Action<string>? ExcludeGame = null);
 
 /// <summary>Builds the tray context menu (separate from TrayApp so the screenshot mode can render it too).</summary>
 internal static class TrayMenu
@@ -63,7 +63,12 @@ internal static class TrayMenu
         if (s.Displays.Count == 0)
             menu.Items.Add(Item(L.T("Bildschirme werden gesucht …", "Looking for displays …"), enabled: false, icon: Icons.Display));
         if (s.ActiveGame != null)
+        {
             menu.Items.Add(Item(L.T("Spiel erkannt: ", "Game detected: ") + s.ActiveGame, enabled: false, icon: Icons.Game));
+            // one click for false alarms (a fullscreen app that is no game)
+            if (s.ActiveGameProcess is { } process && a.ExcludeGame != null)
+                menu.Items.Add(Item(L.T("„{0}“ nie als Spiel behandeln", "Never treat \"{0}\" as a game", s.ActiveGame), () => a.ExcludeGame(process), Icons.Blocked));
+        }
         else if (s.ActiveProgram != null)
             menu.Items.Add(Item(L.T("Im Vordergrund: ", "In the foreground: ") + s.ActiveProgram, enabled: false, icon: Icons.Apps));
 

@@ -96,7 +96,7 @@ internal sealed class TrayApp : IBlackout
     }
 
     private void BuildMenu() => TrayMenu.Fill(menu_,
-        new TrayMenuState(displays_.Displays, State, engine_.Reasons, engine_.ActiveGame, engine_.ActiveProgram, settings_.Paused, pendingUpdate_),
+        new TrayMenuState(displays_.Displays, State, engine_.Reasons, engine_.ActiveGame, engine_.ActiveProgram, settings_.Paused, pendingUpdate_, engine_.ActiveGameProcess),
         new TrayMenuActions(
             SetMode: (d, index) => Task.Run(() => displays_.SetMode(d, index)).ContinueWith(_ => Ui(UpdateTooltip)),
             Blank: Show,
@@ -104,7 +104,8 @@ internal sealed class TrayApp : IBlackout
             ShowSettings: ShowSettings,
             CheckForUpdates: () => _ = CheckForUpdatesAsync(true),
             InstallUpdate: () => { if (pendingUpdate_ != null) _ = InstallUpdateAsync(pendingUpdate_); },
-            Exit: ExitApp));
+            Exit: ExitApp,
+            ExcludeGame: ExcludeGame));
 
     private string State(DisplayInfo d) =>
         overlays_.ContainsKey(d.Id) ? DisplayAction.Text(DisplayAction.Black) : d.Eizo != null ? d.Eizo.CurrentModeName : "—";
@@ -121,6 +122,20 @@ internal sealed class TrayApp : IBlackout
         s.Paused = !s.Paused;
         ApplySettings(s);
         Notify(s.Paused ? L.T("Automatik pausiert", "Automatic switching paused") : L.T("Automatik aktiv", "Automatic switching active"));
+    }
+
+    private void ExcludeGame(string process)
+    {
+        string name = ProcessNames.Base(process);
+        if (settingsWindow_ != null) settingsWindow_.ExcludeGame(name); // its next save carries it
+        else
+        {
+            var s = settings_.Clone();
+            if (s.Games.ExcludedProcesses.All(x => ProcessNames.Normalize(x) != ProcessNames.Normalize(name)))
+                s.Games.ExcludedProcesses.Add(name);
+            ApplySettings(s);
+        }
+        Notify(L.T("„{0}“ wird nicht mehr als Spiel behandelt.", "\"{0}\" is no longer treated as a game.", name));
     }
 
     // ---------------------------------------------------------------- settings

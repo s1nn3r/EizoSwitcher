@@ -103,7 +103,6 @@
   "Pause automatic switching": "Sospendi il cambio automatico",
   "Primary display – blanked instead": "Schermo principale – viene oscurato",
   "Print the current mode only": "Mostra solo la modalità attuale",
-  "Process names, one per line (without .exe).": "Nomi dei processi, uno per riga (senza .exe).",
   "Program switches are detected immediately; the interval only affects background checks.": "I cambi di programma vengono rilevati subito; l'intervallo riguarda solo i controlli in background.",
   "Programs": "Programmi",
   "Programs Windows recognizes as games (Game Bar)": "Programmi che Windows riconosce come giochi (Game Bar)",
@@ -183,5 +182,8 @@
   "Update now": "Aggiorna ora",
   "Version {0} is available – click here or use the tray menu to install it.": "La versione {0} è disponibile: fai clic qui o usa il menu dell'area di notifica per installarla.",
   "View on GitHub": "Vedi su GitHub",
-  "You have version {0}. Update now? EizoSwitcher restarts by itself afterwards.": "Hai la versione {0}. Aggiornare ora? EizoSwitcher si riavvia da solo al termine."
+  "You have version {0}. Update now? EizoSwitcher restarts by itself afterwards.": "Hai la versione {0}. Aggiornare ora? EizoSwitcher si riavvia da solo al termine.",
+  "\"{0}\" is no longer treated as a game.": "«{0}» non viene più trattato come gioco.",
+  "Never treat \"{0}\" as a game": "Non trattare mai «{0}» come gioco",
+  "These programs never trigger the game settings, not even in fullscreen. A false alarm can also be excluded right from the tray menu.": "Questi programmi non attivano mai le impostazioni di gioco, nemmeno a schermo intero. Un falso allarme si può escludere anche direttamente dal menu dell'area di notifica."
 }

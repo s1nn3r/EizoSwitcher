@@ -118,7 +118,7 @@ Language, light/dark theme, autostart, notifications, updates.
 "Just check whether DirectX is in use" sounds tempting, but doesn't work: browsers, Office, Teams and half of Windows use DirectX too. There simply isn't one reliable signal, so EizoSwitcher combines four (each can be turned off):
 
 1. **Exclusive fullscreen (DirectX)** – Windows itself reports when a Direct3D app runs in exclusive fullscreen. Very reliable, but many modern games use borderless mode instead.
-2. **Borderless fullscreen window** – the window in the foreground covers its entire monitor. Browsers, video players and similar apps are excluded (the list is editable).
+2. **Borderless fullscreen window** – the window in the foreground covers its entire monitor. Browsers, video players, editors, chat apps, remote desktop and similar apps are excluded. Add your own under *Games → Never treat as a game* (pick a running program or an .exe), or – when something is mistaken for a game – click *Never treat "…" as a game* right in the tray menu.
 3. **Windows game list** – programs Windows has classified as games for Game Mode / Game Bar.
 4. **Game libraries** – programs started from your Steam, Epic, GOG, Ubisoft, EA or Xbox library folders (plus any folder you add) that open a window. This catches games right at launch, even in windowed mode.
 

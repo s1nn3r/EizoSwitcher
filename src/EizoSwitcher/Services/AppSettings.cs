@@ -46,9 +46,24 @@ public sealed class GameSettings
     public Dictionary<string, string> Actions { get; set; } = [];
     public List<string> ExtraFolders { get; set; } = [];
     public List<string> ExcludedProcesses { get; set; } = [.. DefaultExclusions];
+    /// <summary>Which default exclusions this list has seen (newer ones are added once, removed ones stay removed).</summary>
+    public int ExclusionsVersion { get; set; }
 
     /// <summary>Launchers, helpers and fullscreen apps that are not games.</summary>
-    public static readonly string[] DefaultExclusions =
+    public static string[] DefaultExclusions => [.. Exclusions1, .. Exclusions2];
+
+    /// <summary>Adds default exclusions introduced after this list was created. Returns true if anything changed.</summary>
+    public bool UpgradeExclusions()
+    {
+        if (ExclusionsVersion >= 2) return false;
+        int before = ExcludedProcesses.Count;
+        ExcludedProcesses = [.. ExcludedProcesses.Concat(Exclusions2).DistinctBy(ProcessNames.Normalize)];
+        if (ExcludedProcesses.Count > before) Log.Write($"Never-a-game list: added {ExcludedProcesses.Count - before} new defaults");
+        ExclusionsVersion = 2;
+        return true;
+    }
+
+    private static readonly string[] Exclusions1 =
     [
         "explorer", "ApplicationFrameHost", "TextInputHost", "ShellExperienceHost", "StartMenuExperienceHost", "LockApp",
         "steam", "steamwebhelper", "EpicGamesLauncher", "EpicWebHelper", "GalaxyClient", "GalaxyClient Helper",
@@ -57,6 +72,15 @@ public sealed class GameSettings
         "wallpaper32", "wallpaper64", "webwallpaper32", "vrmonitor", "vrserver",
         "msedge", "chrome", "firefox", "brave", "opera", "vivaldi", "vlc", "mpc-hc64", "mpc-be64", "PotPlayerMini64", "mpv",
         "POWERPNT", "Teams", "ms-teams", "Zoom", "obs64", "Resolve", "Adobe Premiere Pro", "EizoSwitcher",
+    ];
+
+    // 0.3.4: apps that are often used in fullscreen (F11, maximized without frame) and were mistaken for games
+    private static readonly string[] Exclusions2 =
+    [
+        "claude", "ChatGPT", "Code", "Cursor", "devenv", "rider64", "idea64", "WindowsTerminal",
+        "mstsc", "msrdc", "vmconnect", "VirtualBoxVM", "vmware", "Discord", "Slack", "WhatsApp", "Telegram", "Ferdium",
+        "Spotify", "Notion", "Obsidian", "Photos", "Microsoft.Photos", "Photoshop", "Lightroom", "AfterFX",
+        "Adobe Media Encoder", "kodi", "Plex", "Plex HTPC", "ShareX",
     ];
 }
 
@@ -105,15 +129,21 @@ public sealed class AppSettings
     {
         try
         {
-            if (File.Exists(FilePath))
-                return JsonSerializer.Deserialize(File.ReadAllText(FilePath), SettingsJson.Default.AppSettings) ?? new();
+            if (File.Exists(FilePath) && JsonSerializer.Deserialize(File.ReadAllText(FilePath), SettingsJson.Default.AppSettings) is { } s)
+            {
+                if (s.Games.UpgradeExclusions())
+                    try { s.Save(); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+                return s;
+            }
         }
         catch (Exception e) when (e is JsonException or IOException)
         {
             Log.Write($"settings.json unreadable, starting with defaults: {e.Message}");
             try { File.Copy(FilePath, FilePath + ".broken", true); } catch (IOException) { }
         }
-        return new();
+        var fresh = new AppSettings();
+        fresh.Games.UpgradeExclusions();
+        return fresh;
     }
 
     public void Save()
@@ -137,6 +167,13 @@ public static class Links
 public static class ProcessNames
 {
     /// <summary>"C:\x\Photoshop.EXE" / "Photoshop" -> "photoshop"</summary>
+    /// <summary>"C:\x\Photoshop.exe" -> "Photoshop" (keeps dots in names like "Battle.net")</summary>
+    public static string Base(string name)
+    {
+        name = Path.GetFileName(name.Trim());
+        return name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? name[..^4] : name;
+    }
+
     public static string Normalize(string name)
     {
         name = Path.GetFileName(name.Trim());
