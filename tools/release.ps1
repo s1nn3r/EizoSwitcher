@@ -27,7 +27,8 @@ New-Item -ItemType Directory -Force $pkg | Out-Null
 # Framework-dependent single files: tiny downloads, the .NET 10 Desktop Runtime is installed once
 # (the exe offers the download link itself if it is missing).
 $common = @('-c', 'Release', '-r', 'win-x64', '--self-contained', 'false', '-p:PublishSingleFile=true',
-            '-p:DebugType=none', "-p:Version=$Version", '--nologo', '-v', 'q')
+            '-p:DebugType=none', "-p:Version=$Version", '--nologo', '-v', 'q',
+            '--artifacts-path', "$out\build")  # isolated from the dev bin/obj folders
 
 Write-Host "== Tray app" -ForegroundColor Cyan
 dotnet publish "$root\src\EizoSwitcher\EizoSwitcher.csproj" @common -o "$out\app"
