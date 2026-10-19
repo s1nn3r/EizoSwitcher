@@ -208,6 +208,7 @@ internal sealed class SettingsWindow : Window
 
         var table = new StackPanel { Margin = new Thickness(0, 0, 0, 16) };
         table.Children.Add(header);
+        if (ruleTable_.Parent is Panel previous) previous.Children.Remove(ruleTable_); // page is rebuilt when displays change
         table.Children.Add(ruleTable_);
         var card = Ui.Card(new ScrollViewer { Content = table, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled }, new Thickness(8, 12, 8, 8));
 

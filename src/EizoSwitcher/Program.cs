@@ -43,6 +43,15 @@ internal static class Program
             return app.Run();
         }
 
+        // a tray app must not just vanish: log unexpected UI errors and keep running
+        app.DispatcherUnhandledException += (_, e) =>
+        {
+            Log.Write($"Unexpected error (handled): {e.Exception}");
+            e.Handled = true;
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, e) => Log.Write($"Fatal error: {e.ExceptionObject}");
+        TaskScheduler.UnobservedTaskException += (_, e) => { Log.Write($"Background task error: {e.Exception}"); e.SetObserved(); };
+
         app.Startup += (_, _) => _ = new TrayApp(app, settings, updated);
         return app.Run();
     }

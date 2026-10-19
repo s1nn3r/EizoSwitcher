@@ -126,6 +126,8 @@ Like programs, a game only counts while it is in the foreground – Alt+Tab to a
 
 ## The tray icon
 
+![Tray menu](docs/screenshots/en/6-tray-menu.png)
+
 Right-click it for:
 
 - every display with its current mode and *why* it's active – click one to switch by hand or blank it

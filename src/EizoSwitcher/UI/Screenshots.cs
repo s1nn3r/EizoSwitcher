@@ -45,13 +45,35 @@ internal static class Screenshots
             {
                 timer.Stop();
                 w.Close();
+                CaptureTrayMenu(displays, Path.Combine(dir, "6-tray-menu.png"));
                 displays.Dispose();
-                Application.Current.Shutdown();
+                Environment.Exit(0); // the opened context menu keeps the dispatcher alive otherwise
                 return;
             }
             w.SelectedPage = page++;
         };
         timer.Start();
+    }
+
+    /// <summary>Opens the tray menu (with the first display's submenu) briefly and renders it.</summary>
+    private static void CaptureTrayMenu(DisplayService displays, string path)
+    {
+        var menu = new ContextMenu();
+        var reasons = displays.Displays.ToDictionary(d => d.Id, d => d.Primary ? "Adobe Photoshop" : L.T("Standard", "Default"));
+        TrayMenu.Fill(menu,
+            new TrayMenuState(displays.Displays, d => d.Eizo?.CurrentModeName ?? "—", reasons, null, "Adobe Photoshop", false, null),
+            new TrayMenuActions((_, _) => { }, _ => { }, () => { }, () => { }, () => { }, () => { }, () => { }));
+        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.AbsolutePoint;
+        menu.HorizontalOffset = 40;
+        menu.VerticalOffset = 40;
+        menu.IsOpen = true;
+        var frame = new DispatcherFrame();
+        var t = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        t.Tick += (_, _) => { t.Stop(); frame.Continue = false; };
+        t.Start();
+        Dispatcher.PushFrame(frame);
+        Capture(menu, path);
+        menu.IsOpen = false;
     }
 
     private static void Capture(FrameworkElement root, string path)
