@@ -22,7 +22,8 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $out = Join-Path $root "artifacts\$Version"
 $pkg = Join-Path $out 'package'
-Remove-Item $out -Recurse -Force -ErrorAction SilentlyContinue
+# start clean, but keep hand-written release notes
+Get-ChildItem $out -Exclude 'notes.md' -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
 New-Item -ItemType Directory -Force $pkg | Out-Null
 
 # Framework-dependent single files: tiny downloads, the .NET 10 Desktop Runtime is installed once
