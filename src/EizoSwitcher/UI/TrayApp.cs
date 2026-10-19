@@ -1,25 +1,39 @@
+using System.Net.Http;
+using System.Runtime.InteropServices;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Threading;
 using EizoSwitcher.Services;
+using Wpf.Ui.Controls;
+using Forms = System.Windows.Forms;
+using MenuItem = System.Windows.Controls.MenuItem;
 
 namespace EizoSwitcher.UI;
 
 /// <summary>Owns the tray icon, the engine and all windows. Lives on the UI thread.</summary>
-internal sealed class TrayApp : ApplicationContext, IBlackout
+internal sealed class TrayApp : IBlackout
 {
-    private readonly Control invoker_ = new();
-    private readonly NotifyIcon tray_;
+    private readonly Application app_;
+    private readonly Dispatcher ui_;
+    private readonly Forms.NotifyIcon tray_;
+    private readonly ContextMenu menu_ = new();
+    private readonly Window menuHost_;
     private readonly DisplayService displays_ = new();
     private readonly SwitchEngine engine_;
-    private readonly Dictionary<string, OverlayForm> overlays_ = [];
-    private readonly System.Windows.Forms.Timer updateTimer_ = new() { Interval = 20_000 };
+    private readonly Dictionary<string, OverlayWindow> overlays_ = [];
+    private readonly DispatcherTimer updateTimer_ = new() { Interval = TimeSpan.FromSeconds(20) };
     private readonly bool firstRun_;
     private AppSettings settings_;
-    private SettingsForm? settingsForm_;
+    private SettingsWindow? settingsWindow_;
     private UpdateInfo? pendingUpdate_;
     private bool updating_, welcomed_;
 
-    public TrayApp(AppSettings settings, bool justUpdated)
+    public TrayApp(Application app, AppSettings settings, bool justUpdated)
     {
-        _ = invoker_.Handle; // marshalling target for background threads
+        app_ = app;
+        ui_ = app.Dispatcher;
         firstRun_ = !File.Exists(AppSettings.FilePath);
         settings_ = settings;
         Log.Write($"EizoSwitcher {Updater.Current} started");
@@ -30,9 +44,16 @@ internal sealed class TrayApp : ApplicationContext, IBlackout
         engine_.StateChanged += () => Ui(UpdateTooltip);
         engine_.DisplaysRefreshed += () => Ui(RememberDisplays);
 
-        tray_ = new NotifyIcon { Icon = UI.Ui.AppIcon(SystemInformation.SmallIconSize), Text = "EizoSwitcher", Visible = true, ContextMenuStrip = new ContextMenuStrip() };
-        tray_.ContextMenuStrip.Opening += (_, e) => { BuildMenu(tray_.ContextMenuStrip); e.Cancel = false; };
-        tray_.MouseClick += (_, e) => { if (e.Button == MouseButtons.Left) ShowSettings(); };
+        // invisible helper window: the context menu needs a foreground window to close when clicking elsewhere
+        menuHost_ = new Window { Width = 1, Height = 1, Left = -10000, Top = -10000, WindowStyle = WindowStyle.None, ShowInTaskbar = false, ShowActivated = false, AllowsTransparency = true, Background = Brushes.Transparent };
+        menuHost_.Show();
+
+        tray_ = new Forms.NotifyIcon { Icon = UI.Ui.TrayIcon(Forms.SystemInformation.SmallIconSize), Text = "EizoSwitcher", Visible = true };
+        tray_.MouseUp += (_, e) =>
+        {
+            if (e.Button == Forms.MouseButtons.Right) ShowMenu();
+            else if (e.Button == Forms.MouseButtons.Left) ShowSettings();
+        };
         tray_.BalloonTipClicked += async (_, _) => { if (pendingUpdate_ != null) await InstallUpdateAsync(pendingUpdate_); };
 
         Autostart.Apply(settings_.StartWithWindows);
@@ -41,7 +62,7 @@ internal sealed class TrayApp : ApplicationContext, IBlackout
 
         updateTimer_.Tick += async (_, _) =>
         {
-            updateTimer_.Interval = 6 * 3600 * 1000;
+            updateTimer_.Interval = TimeSpan.FromHours(6);
             if (settings_.AutoCheckUpdates) await CheckForUpdatesAsync(interactive: false);
         };
         updateTimer_.Start();
@@ -51,53 +72,76 @@ internal sealed class TrayApp : ApplicationContext, IBlackout
 
     private void Ui(Action a)
     {
-        if (invoker_.IsDisposed) return;
-        if (invoker_.InvokeRequired) invoker_.BeginInvoke(a); else a();
+        if (ui_.HasShutdownStarted) return;
+        if (ui_.CheckAccess()) a(); else ui_.BeginInvoke(a);
     }
 
-    private void Notify(string message) => tray_.ShowBalloonTip(3000, "EizoSwitcher", message, ToolTipIcon.None);
+    private void Notify(string message) => tray_.ShowBalloonTip(3000, "EizoSwitcher", message, Forms.ToolTipIcon.None);
 
     // ---------------------------------------------------------------- tray menu
 
-    private void BuildMenu(ContextMenuStrip menu)
-    {
-        menu.Items.Clear();
-        menu.Items.Add(new ToolStripMenuItem($"EizoSwitcher {Updater.Current}") { Enabled = false });
-        menu.Items.Add(new ToolStripSeparator());
+    [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hwnd);
 
+    private void ShowMenu()
+    {
+        BuildMenu();
+        SetForegroundWindow(new WindowInteropHelper(menuHost_).Handle);
+        menu_.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
+        menu_.IsOpen = true;
+    }
+
+    private void BuildMenu()
+    {
+        menu_.Items.Clear();
+        MenuItem Item(string header, Action? click = null, SymbolRegular? icon = null, bool enabled = true)
+        {
+            var mi = new MenuItem { Header = header, IsEnabled = enabled };
+            if (icon != null) mi.Icon = new SymbolIcon { Symbol = icon.Value };
+            if (click != null) mi.Click += (_, _) => click();
+            return mi;
+        }
+
+        menu_.Items.Add(Item($"EizoSwitcher {Updater.Current}", enabled: false));
+        menu_.Items.Add(new Separator());
         foreach (var d in displays_.Displays)
         {
             string reason = engine_.Reasons.GetValueOrDefault(d.Id) ?? "";
-            var item = new ToolStripMenuItem($"{d.Name}:  {State(d)}" + (reason.Length > 0 ? $"   ({reason})" : ""));
+            var item = Item($"{d.Name}:  {State(d)}" + (reason.Length > 0 ? $"   ({reason})" : ""), icon: SymbolRegular.Desktop24);
             if (d.Eizo != null)
             {
                 for (int i = 0; i < d.Eizo.Modes.Count; i++)
                 {
                     int index = i;
-                    var mi = new ToolStripMenuItem(d.Eizo.Modes[i]) { Checked = i == d.Eizo.CurrentMode };
-                    mi.Click += (_, _) => Task.Run(() => displays_.SetMode(d, index)).ContinueWith(_ => Ui(UpdateTooltip));
-                    item.DropDownItems.Add(mi);
+                    var mi = Item(d.Eizo.Modes[i], () => Task.Run(() => displays_.SetMode(d, index)).ContinueWith(_ => Ui(UpdateTooltip)));
+                    mi.IsCheckable = true;
+                    mi.IsChecked = i == d.Eizo.CurrentMode;
+                    item.Items.Add(mi);
                 }
-                item.DropDownItems.Add(new ToolStripSeparator());
+                item.Items.Add(new Separator());
             }
-            item.DropDownItems.Add(L.T("Schwarz schalten (Klick zum Aufheben)", "Blank (click to undo)"), null, (_, _) => Show(d));
-            menu.Items.Add(item);
+            item.Items.Add(Item(L.T("Schwarz schalten (Klick zum Aufheben)", "Blank (click to undo)"), () => Show(d), SymbolRegular.WeatherMoon24));
+            menu_.Items.Add(item);
         }
         if (displays_.Displays.Count == 0)
-            menu.Items.Add(new ToolStripMenuItem(L.T("Bildschirme werden gesucht …", "Looking for displays …")) { Enabled = false });
+            menu_.Items.Add(Item(L.T("Bildschirme werden gesucht …", "Looking for displays …"), enabled: false));
         if (engine_.ActiveGame != null)
-            menu.Items.Add(new ToolStripMenuItem(L.T("Spiel erkannt: ", "Game detected: ") + engine_.ActiveGame) { Enabled = false });
+            menu_.Items.Add(Item(L.T("Spiel erkannt: ", "Game detected: ") + engine_.ActiveGame, enabled: false, icon: SymbolRegular.Games24));
+        else if (engine_.ActiveProgram != null)
+            menu_.Items.Add(Item(L.T("Im Vordergrund: ", "In the foreground: ") + engine_.ActiveProgram, enabled: false, icon: SymbolRegular.Apps24));
 
-        menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(new ToolStripMenuItem(L.T("Automatik pausieren", "Pause automatic switching"), null, (_, _) => TogglePause()) { Checked = settings_.Paused });
-        var open = new ToolStripMenuItem(L.T("Einstellungen …", "Settings …"), null, (_, _) => ShowSettings());
-        open.Font = new Font(open.Font, FontStyle.Bold);
-        menu.Items.Add(open);
-        menu.Items.Add(pendingUpdate_ != null
-            ? new ToolStripMenuItem(L.T("Update auf {0} installieren", "Install update {0}", pendingUpdate_.Version), null, async (_, _) => await InstallUpdateAsync(pendingUpdate_))
-            : new ToolStripMenuItem(L.T("Nach Updates suchen", "Check for updates"), null, async (_, _) => await CheckForUpdatesAsync(true)));
-        menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(L.T("Beenden", "Exit"), null, (_, _) => ExitApp());
+        menu_.Items.Add(new Separator());
+        var pause = Item(L.T("Automatik pausieren", "Pause automatic switching"), TogglePause, SymbolRegular.Pause24);
+        pause.IsCheckable = true;
+        pause.IsChecked = settings_.Paused;
+        menu_.Items.Add(pause);
+        var open = Item(L.T("Einstellungen …", "Settings …"), ShowSettings, SymbolRegular.Settings24);
+        open.FontWeight = FontWeights.SemiBold;
+        menu_.Items.Add(open);
+        menu_.Items.Add(pendingUpdate_ != null
+            ? Item(L.T("Update auf {0} installieren", "Install update {0}", pendingUpdate_.Version), async () => await InstallUpdateAsync(pendingUpdate_), SymbolRegular.ArrowDownload24)
+            : Item(L.T("Nach Updates suchen", "Check for updates"), async () => await CheckForUpdatesAsync(true), SymbolRegular.ArrowSync24));
+        menu_.Items.Add(new Separator());
+        menu_.Items.Add(Item(L.T("Beenden", "Exit"), ExitApp, SymbolRegular.Dismiss24));
     }
 
     private string State(DisplayInfo d) =>
@@ -121,7 +165,8 @@ internal sealed class TrayApp : ApplicationContext, IBlackout
 
     private void ApplySettings(AppSettings s)
     {
-        bool lookChanged = s.Language != settings_.Language || s.Theme != settings_.Theme;
+        bool languageChanged = s.Language != settings_.Language;
+        bool themeChanged = s.Theme != settings_.Theme;
         settings_ = s;
         try { s.Save(); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log.Write($"Saving settings failed: {e.Message}"); }
@@ -129,17 +174,11 @@ internal sealed class TrayApp : ApplicationContext, IBlackout
         Autostart.Apply(s.StartWithWindows);
         UpdateTooltip();
 
-        if (lookChanged)
+        if (themeChanged) Theme.Apply(s.Theme);
+        if (languageChanged)
         {
             L.Set(s.Language);
-            Application.SetColorMode(Program.ColorMode(s.Theme));
-            if (settingsForm_ is { IsDisposed: false } open)
-            {
-                // reopen so texts and colors are rebuilt
-                int tab = open.SelectedTab;
-                open.Close();
-                ShowSettings(tab);
-            }
+            settingsWindow_?.Rebuild();
         }
     }
 
@@ -168,32 +207,30 @@ internal sealed class TrayApp : ApplicationContext, IBlackout
         }
         if (changed) ApplySettings(s);
         UpdateTooltip();
-        settingsForm_?.DisplaysChanged();
+        settingsWindow_?.DisplaysChanged();
         if (firstRun_ && !welcomed_) { welcomed_ = true; ShowSettings(); }
     }
 
-    private void ShowSettings() => ShowSettings(0);
-
-    private void ShowSettings(int tab)
+    private void ShowSettings()
     {
-        if (settingsForm_ is { IsDisposed: false })
+        if (settingsWindow_ != null)
         {
-            if (settingsForm_.WindowState == FormWindowState.Minimized) settingsForm_.WindowState = FormWindowState.Normal;
-            settingsForm_.Activate();
+            if (settingsWindow_.WindowState == WindowState.Minimized) settingsWindow_.WindowState = WindowState.Normal;
+            settingsWindow_.Activate();
             return;
         }
-        var form = new SettingsForm(settings_, displays_, engine_.Games, this) { SelectedTab = tab };
-        form.Saved += s =>
+        var w = new SettingsWindow(settings_, displays_, engine_.Games, this);
+        w.Saved += s =>
         {
             // keep what changed in the background meanwhile
             s.Displays = settings_.Displays;
             s.Paused = settings_.Paused;
             ApplySettings(s);
         };
-        form.FormClosed += (_, _) => { if (settingsForm_ == form) settingsForm_ = null; };
-        settingsForm_ = form;
-        form.Show();
-        form.Activate();
+        w.Closed += (_, _) => { if (settingsWindow_ == w) settingsWindow_ = null; };
+        settingsWindow_ = w;
+        w.Show();
+        w.Activate();
     }
 
     private void ListenForShowRequests()
@@ -203,8 +240,6 @@ internal sealed class TrayApp : ApplicationContext, IBlackout
     }
 
     public void RefreshDisplays() => engine_.RequestRefresh();
-
-    public DisplayService Displays => displays_;
 
     // ---------------------------------------------------------------- updates
 
@@ -255,16 +290,16 @@ internal sealed class TrayApp : ApplicationContext, IBlackout
     public void Show(DisplayInfo display) => Ui(() =>
     {
         if (overlays_.ContainsKey(display.Id) || display.Width == 0) return;
-        var f = new OverlayForm(display);
-        f.FormClosed += (_, _) => { overlays_.Remove(display.Id); UpdateTooltip(); };
-        overlays_[display.Id] = f;
-        f.Show();
+        var w = new OverlayWindow(display);
+        w.Closed += (_, _) => { overlays_.Remove(display.Id); UpdateTooltip(); };
+        overlays_[display.Id] = w;
+        w.Show();
         UpdateTooltip();
     });
 
     public void Hide(string displayId) => Ui(() =>
     {
-        if (overlays_.TryGetValue(displayId, out var f)) f.Close();
+        if (overlays_.TryGetValue(displayId, out var w)) w.Close();
     });
 
     // ---------------------------------------------------------------- exit
@@ -273,54 +308,52 @@ internal sealed class TrayApp : ApplicationContext, IBlackout
     {
         updateTimer_.Stop();
         engine_.Dispose();
-        foreach (var f in overlays_.Values.ToList()) f.Close();
+        foreach (var w in overlays_.Values.ToList()) w.Close();
         tray_.Visible = false;
         tray_.Dispose();
         displays_.Dispose();
         Log.Write("EizoSwitcher stopped");
-        ExitThread();
+        app_.Shutdown();
     }
 }
 
 /// <summary>Black borderless window that blanks one display (works with every monitor). Click hides it.</summary>
-internal sealed class OverlayForm : Form
+internal sealed class OverlayWindow : Window
 {
-    public OverlayForm(DisplayInfo d)
-    {
-        Text = "EizoSwitcher";
-        FormBorderStyle = FormBorderStyle.None;
-        StartPosition = FormStartPosition.Manual;
-        Bounds = new Rectangle(d.X, d.Y, d.Width, d.Height);
-        BackColor = Color.Black;
-        TopMost = true;
-        ShowInTaskbar = false;
-        Cursor = Cursors.Hand;
+    private readonly DisplayInfo display_;
 
-        var hint = new Label
+    [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
+    [DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr hwnd, int index);
+    [DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr hwnd, int index, int value);
+
+    public OverlayWindow(DisplayInfo d)
+    {
+        display_ = d;
+        Title = "EizoSwitcher";
+        WindowStyle = WindowStyle.None;
+        ResizeMode = ResizeMode.NoResize;
+        Background = Brushes.Black;
+        Topmost = true;
+        ShowInTaskbar = false;
+        ShowActivated = false;
+        Cursor = System.Windows.Input.Cursors.Hand;
+
+        var hint = new System.Windows.Controls.TextBlock
         {
             Text = "EizoSwitcher\n" + L.T("Bildschirm abgedunkelt · Klicken zum Einblenden", "Display blanked · click to show"),
-            ForeColor = Color.FromArgb(90, 90, 90), BackColor = Color.Black, AutoSize = false, Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleCenter, Font = new Font("Segoe UI", 12f),
+            Foreground = new SolidColorBrush(Color.FromRgb(90, 90, 90)), FontSize = 16, TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
         };
-        hint.Click += (_, _) => Close();
-        Controls.Add(hint);
-        Click += (_, _) => Close();
+        Content = new Grid { Background = Brushes.Black, Children = { hint } };
+        MouseDown += (_, _) => Close();
+        Loaded += (_, _) => Task.Delay(3000).ContinueWith(_ => Dispatcher.Invoke(() => hint.Text = ""));
 
-        var fade = new System.Windows.Forms.Timer { Interval = 3000 };
-        fade.Tick += (_, _) => { hint.Text = ""; fade.Dispose(); };
-        Shown += (_, _) => fade.Start();
-    }
-
-    // do not steal the focus from the game / program in front
-    protected override bool ShowWithoutActivation => true;
-
-    protected override CreateParams CreateParams
-    {
-        get
+        // position in physical pixels – independent of the per-monitor DPI scaling
+        SourceInitialized += (_, _) =>
         {
-            var cp = base.CreateParams;
-            cp.ExStyle |= 0x08000000 /* WS_EX_NOACTIVATE */ | 0x00000080 /* WS_EX_TOOLWINDOW */;
-            return cp;
-        }
+            var hwnd = new WindowInteropHelper(this).Handle;
+            SetWindowLong(hwnd, -20, GetWindowLong(hwnd, -20) | 0x08000000 /* WS_EX_NOACTIVATE */ | 0x00000080 /* WS_EX_TOOLWINDOW */);
+            SetWindowPos(hwnd, new IntPtr(-1) /* HWND_TOPMOST */, display_.X, display_.Y, display_.Width, display_.Height, 0x0010 /* SWP_NOACTIVATE */);
+        };
     }
 }

@@ -1,45 +1,68 @@
-using System.Drawing.Imaging;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using EizoSwitcher.Services;
 
 namespace EizoSwitcher.UI;
 
 /// <summary>
-/// Renders the settings tabs to PNG for the documentation:
-///   EizoSwitcher.exe --screenshots docs\screenshots\en [--dark]   (language via EIZOSWITCHER_LANG)
+/// Renders the settings pages to PNG for the documentation:
+///   EizoSwitcher.exe --screenshots docs\screenshots\en [--dark|--light]   (language via EIZOSWITCHER_LANG)
 /// Uses the real displays but demo rules and hides serial numbers.
 /// </summary>
 internal static class Screenshots
 {
-    public static int Run(string dir)
+    public static void Run(string dir)
     {
         Ui.Demo = true;
         Directory.CreateDirectory(dir);
-        using var displays = new DisplayService();
+        var displays = new DisplayService();
         displays.Refresh();
         Ui.DemoSerials.AddRange(displays.Displays.Select(d => d.Serial));
 
-        using var form = new SettingsForm(DemoSettings(displays), displays, new GameDetector(), null)
+        var w = new SettingsWindow(DemoSettings(displays), displays, new GameDetector(), null)
         {
-            StartPosition = FormStartPosition.Manual,
-            Location = new Point(-20000, -20000),
+            WindowStartupLocation = WindowStartupLocation.Manual,
+            Left = -20000,
+            Top = -20000,
             ShowInTaskbar = false,
-            Size = new Size(1180, 720),
+            Width = 1320,
+            Height = 780,
         };
-        form.Show();
+        w.Show();
+        // the Mica backdrop is not part of a rendered bitmap – paint the theme background instead
+        ((Panel)w.Root).SetResourceReference(Panel.BackgroundProperty, "ApplicationBackgroundBrush");
 
         string[] names = ["1-programs", "2-games", "3-defaults", "4-displays", "5-general"];
-        for (int i = 0; i < names.Length && i < form.TabCount; i++)
+        int page = 0;
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
+        timer.Tick += (_, _) =>
         {
-            form.SelectedTab = i;
-            Application.DoEvents();
-            Thread.Sleep(150);
-            Application.DoEvents();
-            using var bmp = new Bitmap(form.Root.Width, form.Root.Height);
-            form.Root.DrawToBitmap(bmp, new Rectangle(Point.Empty, bmp.Size));
-            bmp.Save(Path.Combine(dir, names[i] + ".png"), ImageFormat.Png);
-        }
-        form.Close();
-        return 0;
+            if (page > 0) Capture(w.Root, Path.Combine(dir, names[page - 1] + ".png"));
+            if (page == names.Length || page >= w.PageCount)
+            {
+                timer.Stop();
+                w.Close();
+                displays.Dispose();
+                Application.Current.Shutdown();
+                return;
+            }
+            w.SelectedPage = page++;
+        };
+        timer.Start();
+    }
+
+    private static void Capture(FrameworkElement root, string path)
+    {
+        var dpi = VisualTreeHelper.GetDpi(root);
+        var bmp = new RenderTargetBitmap((int)(root.ActualWidth * dpi.DpiScaleX), (int)(root.ActualHeight * dpi.DpiScaleY), dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
+        bmp.Render(root);
+        var png = new PngBitmapEncoder();
+        png.Frames.Add(BitmapFrame.Create(bmp));
+        using var fs = File.Create(path);
+        png.Save(fs);
     }
 
     private static AppSettings DemoSettings(DisplayService displays)
@@ -56,12 +79,12 @@ internal static class Screenshots
             return r;
         }
 
-        s.Rules.Add(Rule("DaVinci Resolve", "Resolve.exe", d => Pick(d, "BT.709", "sRGB")));
+        s.Rules.Add(Rule("DaVinci Resolve", "Resolve.exe", d => Pick(d, "BT.709", "sRGB") ?? (d.Primary ? null : DisplayAction.Black)));
         s.Rules.Add(Rule("Adobe Premiere Pro", "Adobe Premiere Pro.exe", d => Pick(d, "BT.709", "sRGB")));
         s.Rules.Add(Rule("Adobe Photoshop", "Photoshop.exe", d => Pick(d, "CAL", "CAL1")));
         s.Rules.Add(Rule("Adobe Lightroom Classic", "Lightroom.exe", d => d.IsEizo ? Pick(d, "CAL", "CAL1") : null));
         s.Rules.Add(Rule(L.T("Altes Werkzeug", "Old tool"), "PrintTool.exe", d => d.IsEizo ? "Paper" : null));
-        s.Games.Actions = displays.Displays.ToDictionary(d => d.Id, d => d.Primary ? Pick(d, "sRGB") ?? "" : DisplayAction.Black);
+        s.Games.Actions = displays.Displays.ToDictionary(d => d.Id, d => d.Primary ? Pick(d, "sRGB") ?? "" : DisplayAction.Off);
         foreach (var d in displays.Displays)
         {
             if (d.Eizo != null) s.Defaults[d.Id] = d.Eizo.CurrentModeName;

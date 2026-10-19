@@ -1,5 +1,7 @@
+using System.Windows;
 using EizoSwitcher.Services;
 using EizoSwitcher.UI;
+using Wpf.Ui.Markup;
 
 namespace EizoSwitcher;
 
@@ -31,20 +33,20 @@ internal static class Program
         }
 
         var settings = AppSettings.Load();
-        ApplicationConfiguration.Initialize();
-        Application.SetColorMode(ColorMode(args.Contains("--dark") ? "dark" : settings.Theme));
         L.Set(settings.Language);
 
-        if (shots >= 0) return Screenshots.Run(shots + 1 < args.Length ? args[shots + 1] : "screenshots");
+        var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        app.Resources.MergedDictionaries.Add(new ThemesDictionary());
+        app.Resources.MergedDictionaries.Add(new ControlsDictionary());
+        Theme.Apply(args.Contains("--dark") ? "dark" : args.Contains("--light") ? "light" : settings.Theme);
 
-        Application.Run(new TrayApp(settings, updated));
-        return 0;
+        if (shots >= 0)
+        {
+            app.Startup += (_, _) => Screenshots.Run(shots + 1 < args.Length && !args[shots + 1].StartsWith("--") ? args[shots + 1] : "screenshots");
+            return app.Run();
+        }
+
+        app.Startup += (_, _) => _ = new TrayApp(app, settings, updated);
+        return app.Run();
     }
-
-    public static SystemColorMode ColorMode(string theme) => theme switch
-    {
-        "light" => SystemColorMode.Classic,
-        "dark" => SystemColorMode.Dark,
-        _ => SystemColorMode.System,
-    };
 }

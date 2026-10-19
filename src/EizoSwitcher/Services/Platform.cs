@@ -29,27 +29,28 @@ public static class Autostart
 [SupportedOSPlatform("windows")]
 public static class ExeIcons
 {
-    private static readonly Dictionary<string, Image?> cache_ = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, System.Windows.Media.ImageSource?> cache_ = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Program icon scaled to <paramref name="size"/> pixels, or null.</summary>
-    public static Image? For(string? path, int size)
+    /// <summary>Program icon as WPF image (frozen, usable from any thread), or null.</summary>
+    public static System.Windows.Media.ImageSource? For(string? path)
     {
         if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
-        string key = $"{size}|{path}";
         lock (cache_)
         {
-            if (cache_.TryGetValue(key, out var img)) return img;
+            if (cache_.TryGetValue(path, out var img)) return img;
             try
             {
-                using var icon = Icon.ExtractAssociatedIcon(path);
+                using var icon = System.Drawing.Icon.ExtractAssociatedIcon(path);
                 if (icon != null)
                 {
-                    using var large = icon.ToBitmap();
-                    img = new Bitmap(large, size, size);
+                    var src = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(icon.Handle, System.Windows.Int32Rect.Empty,
+                        System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
+                    src.Freeze();
+                    img = src;
                 }
             }
             catch (Exception e) when (e is ArgumentException or IOException or System.ComponentModel.Win32Exception) { }
-            return cache_[key] = img;
+            return cache_[path] = img;
         }
     }
 }

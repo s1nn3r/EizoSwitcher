@@ -3,26 +3,37 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <!-- only for the tray icon (NotifyIcon); WPF has none -->
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationIcon>Assets\EizoSwitcher.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
-    <ApplicationDefaultFont>Segoe UI, 9pt</ApplicationDefaultFont>
     <Version>0.1.0</Version>
     <Product>EizoSwitcher</Product>
     <Authors>Marc Breuer</Authors>
     <Copyright>© 2026 Marc Breuer</Copyright>
-    <Description>Switches EIZO color modes and blanks displays depending on running programs and games.</Description>
+    <Description>Switches EIZO color modes and blanks displays depending on the program in the foreground.</Description>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <!-- Application.SetColorMode (dark mode) is still marked experimental -->
-    <NoWarn>$(NoWarn);WFO5001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- WPF and WinForms share type names (Application, Button, …): keep WinForms out of the global usings -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+    <Using Include="System.IO" />
+    <Using Include="System.Net.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\EizoSwitcher.ico" />
     <EmbeddedResource Include="Assets\EizoSwitcher.ico" LogicalName="EizoSwitcher.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WPF-UI" Version="4.3.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -32,13 +32,13 @@ ColorNavigator can switch modes – but only when *you* click. There is no "when
 
 ## What it does
 
-- **Per program, per display** – one table with a column for every display. Resolve → BT.709 on the main screen, Photoshop → CAL, Lightroom → CAL on both.
+- **Follows the program you work in** – the moment a program comes to the foreground, its settings apply; switch to another program and the defaults are back. One table with a column for every display: Resolve → BT.709 on the main screen, Photoshop → CAL, Lightroom → CAL on both.
 - **Real EIZO color modes over USB** – it reads the mode names straight from the monitor (User, BT.709, sRGB, CAL, …). ColorNavigator can stay installed, but doesn't have to.
-- **Every display, any brand** – displays without EIZO USB control can be blanked **black** (works with any monitor) or **turned off** via DDC/CI. Perfect for gaming without a bright second screen in the corner of your eye.
+- **Every display, any brand** – any display can be blanked **black** or **turned off**. A small wizard finds out per display how it can be turned off (DDC/CI or disconnecting it from the desktop). Perfect for gaming without a bright second screen in the corner of your eye.
 - **Game detection** – DirectX fullscreen, borderless fullscreen, the Windows game list and your Steam / Epic / GOG / Ubisoft / EA / Xbox libraries.
 - **Windows color profile included** – together with the mode, EizoSwitcher sets the matching ICC profile as the display's Windows default, so Photoshop & co. color-manage correctly. It uses the profiles ColorNavigator created per mode, or any profile you pick.
 - **Back to normal** – close the program and your defaults apply again. If you change a mode by hand on the monitor, EizoSwitcher respects it until the next program starts or ends.
-- **Lives in the tray** – current mode per display at a glance, manual switching, pause.
+- **Lives in the tray** – current mode per display at a glance, manual switching, pause. Settings in the Windows 11 style, light or dark.
 - **Updates itself** from GitHub releases (checksum-verified, signature-checked once releases are signed).
 - **Command line tool** `eizoswitch` for scripts, hotkeys and Stream Deck buttons.
 - **8 languages** (English, Deutsch, Español, Français, Italiano, Nederlands, Polski, Português) and a **light / dark theme** – both follow Windows or can be set in the app.
@@ -46,11 +46,11 @@ ColorNavigator can switch modes – but only when *you* click. There is no "when
 ## What you need
 
 - Windows 10 or 11 (64-bit)
-- the free [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) (x64) – if it is missing, EizoSwitcher offers the download link on first start. That's why the whole download is under 1 MB.
+- the free [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) (x64) – if it is missing, EizoSwitcher offers the download link on first start. That's why the whole download is only about 3 MB.
 - **For color modes:** an EIZO monitor with its **USB upstream cable** connected to the PC – the same cable ColorNavigator uses
-- **For "turn off":** a display with DDC/CI enabled in its menu. EIZO ColorEdge CG/CS models usually don't answer DDC/CI – "Black" works for them.
+- **For "turn off":** nothing special. If a monitor ignores DDC/CI power commands (like the EIZOs I tested), EizoSwitcher disconnects it from the desktop instead, so it goes to standby by itself. The primary display is blanked black instead.
 
-Built and tested with a **CG279X** and a **CS2731** (USB) plus a **FlexScan S1721** (DDC/CI). Other EIZO models that appear as *EIZO USB HID Monitor* in the Device Manager very likely work too – please [tell me](https://github.com/s1nn3r/EizoSwitcher/issues) about yours.
+Built and tested with a **CG279X** and a **CS2731** (USB) plus a **FlexScan S1721**. Other EIZO models that appear as *EIZO USB HID Monitor* in the Device Manager very likely work too – please [tell me](https://github.com/s1nn3r/EizoSwitcher/issues) about yours.
 
 ## Installation
 
@@ -74,9 +74,9 @@ Click **＋ Running program …** and pick the program (start it first), or choo
 | **—** | the display is left alone |
 | a color mode (e.g. `BT.709`) | the EIZO switches to this mode |
 | **■ Black** | a black window covers the display – works with every monitor, click it to see the desktop again |
-| **⏻ Turn off** | the display switches off via DDC/CI (only offered if it supports that) |
+| **⏻ Turn off** | the display goes off – set up once per display under *Displays → Turn off → Set up …* |
 
-- If several programs are running, the **top row wins** – use ↑ ↓ to set the priority.
+- Only the program **in the foreground** counts. Clicking the taskbar, desktop or start menu keeps the current state; switching to any other program brings the defaults back.
 - **Path** only triggers when the program runs from exactly that folder – handy for generic names like `launcher.exe`.
 - A **grey row** points to a color mode or display that doesn't exist (anymore), e.g. after renaming a mode on the monitor. Hover it to see why.
 
@@ -96,7 +96,9 @@ The mode each EIZO returns to when none of your programs and no game is running.
 
 ![Displays tab](docs/screenshots/en/4-displays.png)
 
-Everything EizoSwitcher knows about your displays, plus buttons to switch by hand and to test *Black* and *Turn off*.
+Everything EizoSwitcher knows about your displays, plus buttons to switch by hand and to test *Black*.
+
+**Turn off → Set up …** starts a short wizard: it tries the methods one after the other – DDC/CI standby, DDC/CI power off, disconnecting the display from the desktop – for five seconds each and simply asks you whether the display went dark. The first method that works is remembered. Many monitors (including my EIZOs) acknowledge the DDC/CI commands but ignore them; disconnecting always works, Windows just rearranges the windows for a moment.
 
 For EIZO displays you also choose the **color profile per mode** here. *Automatic* picks the profile ColorNavigator created for that mode (e.g. `CG279X(12345678)10CAL.icc`); you can also select any installed profile or *Leave unchanged*. The whole feature can be turned off under *General*.
 
@@ -115,7 +117,7 @@ Language, light/dark theme, autostart, notifications, updates.
 3. **Windows game list** – programs Windows has classified as games for Game Mode / Game Bar.
 4. **Game libraries** – programs started from your Steam, Epic, GOG, Ubisoft, EA or Xbox library folders (plus any folder you add) that open a window. This catches games right at launch, even in windowed mode.
 
-Once a game was detected via 1 or 2, it stays "active" until it exits – so Alt+Tab doesn't flip your displays back and forth.
+Like programs, a game only counts while it is in the foreground – Alt+Tab to a browser on the second screen and that screen comes back.
 
 ## The tray icon
 
@@ -158,7 +160,7 @@ eizoswitch list --json                 machine-readable output
 ## If something doesn't work
 
 - **"No EIZO monitor found"** – check the USB cable between the monitor's USB upstream port and the PC. ColorNavigator isn't required, but may keep running.
-- **"Turn off" isn't offered** – the display doesn't answer DDC/CI, or DDC/CI is disabled in its menu. Use *Black* instead.
+- **"Turn off" doesn't work** – run *Displays → Turn off → Set up …* for that display. The primary display can't be disconnected and is blanked black instead.
 - **The Windows color profile doesn't change** – check *General → Also switch the Windows color profile* and the profile per mode under *Displays*. "Automatic" needs the profiles ColorNavigator creates – if a mode was never used with ColorNavigator, pick a profile by hand.
 - **Updates fail** – EizoSwitcher needs to live in a folder you can write to (see Installation). The release page opens so you can update by hand.
 - Anything else: *General → Show log*, then [open an issue](https://github.com/s1nn3r/EizoSwitcher/issues) – I'm happy to help.
@@ -177,7 +179,7 @@ dotnet build
 | Project | |
 |---|---|
 | `src/EizoSwitcher.Core` | USB HID protocol, monitor access, translations |
-| `src/EizoSwitcher` | tray app (Windows Forms) |
+| `src/EizoSwitcher` | tray app (WPF with [WPF-UI](https://github.com/lepoco/wpfui)) |
 | `src/EizoSwitcher.Cli` | `eizoswitch` command line tool |
 | `tools/` | release script, icon renderer, translation helper |
 
