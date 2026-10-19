@@ -75,10 +75,10 @@ internal static class Native
     }
 }
 
-internal sealed record HidValueCap(byte ReportId, ushort UsagePage, ushort Usage, ushort LinkCollection, ushort BitSize, ushort ReportCount, int LogicalMin, int LogicalMax);
+public sealed record HidValueCap(byte ReportId, ushort UsagePage, ushort Usage, ushort LinkCollection, ushort BitSize, ushort ReportCount, int LogicalMin, int LogicalMax);
 
 /// <summary>One EIZO HID device (one monitor).</summary>
-internal sealed class EizoHidDevice : IDisposable
+public sealed class EizoHidDevice : IDisposable
 {
     public string Path { get; }
     public ushort ProductId { get; }

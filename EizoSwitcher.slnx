@@ -1,5 +1,7 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/EizoSwitcher.Cli/EizoSwitcher.Cli.csproj" />
+    <Project Path="src/EizoSwitcher.Core/EizoSwitcher.Core.csproj" />
     <Project Path="src/EizoSwitcher/EizoSwitcher.csproj" />
   </Folder>
 </Solution>

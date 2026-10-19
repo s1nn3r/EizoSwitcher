@@ -1,65 +1,200 @@
-# EizoSwitcher
+<p align="center">
+  <img src="docs/icon.png" width="128" alt="EizoSwitcher icon">
+</p>
 
-Automatically switch the color mode of EIZO ColorEdge monitors over USB depending on which programs are running — e.g. `BT.709` while DaVinci Resolve is open, `CAL` for Photoshop, `sRGB` for games.
+<h1 align="center">EizoSwitcher</h1>
 
-**ColorNavigator does not need to be installed.** EizoSwitcher talks to the monitor directly via its USB HID interface (the USB upstream cable between PC and monitor must be connected).
+<p align="center">
+  <b>The right color mode for every program – automatically.</b><br>
+  Switches EIZO ColorEdge color modes over USB and blanks distracting displays while you work or play.
+</p>
 
-> Unofficial project, not affiliated with or endorsed by EIZO Corporation. Use at your own risk.
+<p align="center">
+  <a href="https://github.com/s1nn3r/EizoSwitcher/releases/latest"><img src="https://img.shields.io/github/v/release/s1nn3r/EizoSwitcher?label=download" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6" alt="Windows 10 and 11">
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/s1nn3r/EizoSwitcher" alt="MIT license"></a>
+  <a href="#-buy-me-a-coffee"><img src="https://img.shields.io/badge/☕-buy%20me%20a%20coffee-FFDD00" alt="Buy me a coffee"></a>
+</p>
 
-## Tested hardware
+---
 
-| Model  | Status |
-|--------|--------|
-| CG279X | read/switch mode, read mode names ✔ |
-| CS2731 | read mode, read mode names ✔ |
+## Why I built this
 
-Other ColorEdge/FlexScan models that expose the `EIZO USB HID Monitor` device (VID `0x056D`) very likely work the same way. Reports welcome.
+Hi, I'm Marc – photographer, video editor and programmer.
 
-## Usage
+On my desk sit two EIZO ColorEdge monitors, and for years I did the same little dance every single day: open **DaVinci Resolve** → dig out ColorNavigator → switch to **BT.709**. Back to **Photoshop** → switch to my **CAL** calibration. Start a game in the evening → **sRGB**, while the second screen keeps glaring at me from the side. And every time I forgot, I graded a clip in the wrong color space and only noticed it on someone else's screen.
 
-Requires Windows and the .NET 10 runtime.
+ColorNavigator can switch modes – but only when *you* click. There is no "when this program runs, use that mode". So I took ColorNavigator apart, figured out how it talks to the monitors over USB and wrote the tool I always wanted:
+
+**EizoSwitcher watches which programs are running and switches my monitors for me. When I close the program, everything goes back to normal.** No ColorNavigator required.
+
+![Programs tab](docs/screenshots/en/1-programs.png)
+
+## What it does
+
+- **Per program, per display** – one table with a column for every display. Resolve → BT.709 on the main screen, Photoshop → CAL, Lightroom → CAL on both.
+- **Real EIZO color modes over USB** – it reads the mode names straight from the monitor (User, BT.709, sRGB, CAL, …). ColorNavigator can stay installed, but doesn't have to.
+- **Every display, any brand** – displays without EIZO USB control can be blanked **black** (works with any monitor) or **turned off** via DDC/CI. Perfect for gaming without a bright second screen in the corner of your eye.
+- **Game detection** – DirectX fullscreen, borderless fullscreen, the Windows game list and your Steam / Epic / GOG / Ubisoft / EA / Xbox libraries.
+- **Back to normal** – close the program and your defaults apply again. If you change a mode by hand on the monitor, EizoSwitcher respects it until the next program starts or ends.
+- **Lives in the tray** – current mode per display at a glance, manual switching, pause.
+- **Updates itself** from GitHub releases (checksum-verified, signature-checked once releases are signed).
+- **Command line tool** `eizoswitch` for scripts, hotkeys and Stream Deck buttons.
+- **8 languages** (English, Deutsch, Español, Français, Italiano, Nederlands, Polski, Português) and a **light / dark theme** – both follow Windows or can be set in the app.
+
+## What you need
+
+- Windows 10 or 11 (64-bit)
+- **For color modes:** an EIZO monitor with its **USB upstream cable** connected to the PC – the same cable ColorNavigator uses
+- **For "turn off":** a display with DDC/CI enabled in its menu. EIZO ColorEdge CG/CS models usually don't answer DDC/CI – "Black" works for them.
+
+Built and tested with a **CG279X** and a **CS2731** (USB) plus a **FlexScan S1721** (DDC/CI). Other EIZO models that appear as *EIZO USB HID Monitor* in the Device Manager very likely work too – please [tell me](https://github.com/s1nn3r/EizoSwitcher/issues) about yours.
+
+## Installation
+
+1. Download **`EizoSwitcher-win-x64.zip`** from the [latest release](https://github.com/s1nn3r/EizoSwitcher/releases/latest).
+2. Extract it into a folder you can write to, e.g. `%LOCALAPPDATA%\Programs\EizoSwitcher`.
+   Please *not* under `C:\Program Files` – otherwise the automatic updates can't replace the files.
+3. Start **`EizoSwitcher.exe`**. The icon appears in the tray, EizoSwitcher reads all your displays, takes over the currently selected modes as your defaults and opens the settings.
+
+> If Windows SmartScreen complains about an unknown app: *More info → Run anyway*.
+
+EizoSwitcher starts with Windows from now on (you can turn that off under *General*).
+
+## Setting it up
+
+### 1. Programs
+
+Click **＋ Running program …** and pick the program (start it first), or choose an `.exe` with **＋ Choose executable …**. Then decide per display:
+
+| Choice | What happens |
+|---|---|
+| **—** | the display is left alone |
+| a color mode (e.g. `BT.709`) | the EIZO switches to this mode |
+| **■ Black** | a black window covers the display – works with every monitor, click it to see the desktop again |
+| **⏻ Turn off** | the display switches off via DDC/CI (only offered if it supports that) |
+
+- If several programs are running, the **top row wins** – use ↑ ↓ to set the priority.
+- **Path** only triggers when the program runs from exactly that folder – handy for generic names like `launcher.exe`.
+- A **grey row** points to a color mode or display that doesn't exist (anymore), e.g. after renaming a mode on the monitor. Hover it to see why.
+
+### 2. Games
+
+![Games tab](docs/screenshots/en/2-games.png)
+
+What should each display do while a game is running? My setup: `sRGB` on the main display, **Black** on the others. Program rules always take precedence over game detection.
+
+### 3. Defaults
+
+![Defaults tab](docs/screenshots/en/3-defaults.png)
+
+The mode each EIZO returns to when none of your programs and no game is running.
+
+### 4. Displays
+
+![Displays tab](docs/screenshots/en/4-displays.png)
+
+Everything EizoSwitcher knows about your displays, plus buttons to switch by hand and to test *Black* and *Turn off*.
+
+### 5. General
+
+Language, light/dark theme, autostart, notifications, updates.
+
+![General tab in dark mode](docs/screenshots/en/5-general-dark.png)
+
+## How games are detected
+
+"Just check whether DirectX is in use" sounds tempting, but doesn't work: browsers, Office, Teams and half of Windows use DirectX too. There simply isn't one reliable signal, so EizoSwitcher combines four (each can be turned off):
+
+1. **Exclusive fullscreen (DirectX)** – Windows itself reports when a Direct3D app runs in exclusive fullscreen. Very reliable, but many modern games use borderless mode instead.
+2. **Borderless fullscreen window** – the window in the foreground covers its entire monitor. Browsers, video players and similar apps are excluded (the list is editable).
+3. **Windows game list** – programs Windows has classified as games for Game Mode / Game Bar.
+4. **Game libraries** – programs started from your Steam, Epic, GOG, Ubisoft, EA or Xbox library folders (plus any folder you add) that open a window. This catches games right at launch, even in windowed mode.
+
+Once a game was detected via 1 or 2, it stays "active" until it exits – so Alt+Tab doesn't flip your displays back and forth.
+
+## The tray icon
+
+Right-click it for:
+
+- every display with its current mode and *why* it's active – click one to switch by hand or blank it
+- **Pause automatic switching** – blanked or switched-off displays come back, nothing is switched until you resume
+- **Settings …**, **Check for updates**, **Exit**
+
+A left click opens the settings. Starting `EizoSwitcher.exe` a second time simply opens the settings of the instance that's already running.
+
+## Command line
+
+`eizoswitch.exe` comes along for scripts, hotkeys and Stream Deck buttons:
 
 ```
-EizoSwitcher list                          connected monitors + current mode
-EizoSwitcher modes                         all color modes per monitor
-EizoSwitcher set <model|serial> <mode>     switch mode (name or index), e.g. set CG279X BT.709
-EizoSwitcher run [config.json]             background mode: switch by running processes
+eizoswitch list                        connected EIZO monitors and their current mode
+eizoswitch modes [monitor]             all color modes
+eizoswitch get [monitor]               just the current mode
+eizoswitch set [monitor] <mode>        switch (name or number)
+eizoswitch list --json                 machine-readable output
 ```
 
-`run` has no window; it writes `EizoSwitcher.log` next to the executable. To start it with Windows, put a shortcut to `EizoSwitcher.exe run` into `shell:startup`.
+`[monitor]` is the model or serial number and can be left out if only one EIZO is connected. Mode names are matched loosely, so `AdobeRGB` finds `Adobe®RGB`.
 
-## Configuration
+```
+> eizoswitch set CG279X BT.709
 
-`config.json` (next to the executable, reloaded automatically when changed):
-
-```jsonc
-{
-  "pollSeconds": 2,
-  // mode when no rule applies; key = model, serial or "*"
-  "default": { "CG279X": "CAL", "CS2731": "User" },
-  // first matching rule (top to bottom) wins, per monitor
-  "rules": [
-    { "name": "Video",  "processes": [ "Resolve", "Adobe Premiere Pro" ], "modes": { "CG279X": "BT.709" } },
-    { "name": "Photo",  "processes": [ "Photoshop", "Lightroom" ],        "modes": { "CG279X": "CAL" } },
-    { "name": "Gaming", "paths": [ "*\\steamapps\\common\\*" ],            "modes": { "*": "sRGB" } }
-  ]
-}
+  CG279X  CAL  →  BT.709  ✓
 ```
 
-- `processes`: process names without `.exe` (case-insensitive)
-- `paths`: wildcard patterns on the full executable path
-- modes by name as shown by `EizoSwitcher modes`, or by index
+## Files
 
-EizoSwitcher only switches when the *desired* mode changes, so a mode you select manually on the monitor stays until a rule starts or stops matching.
+| What | Where |
+|---|---|
+| Settings | `%APPDATA%\EizoSwitcher\settings.json` |
+| Log | `%APPDATA%\EizoSwitcher\EizoSwitcher.log` |
+| Autostart | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` → `EizoSwitcher` |
 
-### Note on ICC profiles
+## If something doesn't work
 
-ColorNavigator also switches the Windows display ICC profile together with the mode. EizoSwitcher currently only switches the monitor's mode. With ColorNavigator running in parallel, it picks up the change itself; without it, the Windows profile stays as it is.
+- **"No EIZO monitor found"** – check the USB cable between the monitor's USB upstream port and the PC. ColorNavigator isn't required, but may keep running.
+- **"Turn off" isn't offered** – the display doesn't answer DDC/CI, or DDC/CI is disabled in its menu. Use *Black* instead.
+- **The Windows color profile doesn't change** – ColorNavigator also switches the Windows ICC profile together with the mode; EizoSwitcher currently only switches the monitor. If ColorNavigator runs in parallel, it picks up the change itself.
+- **Updates fail** – EizoSwitcher needs to live in a folder you can write to (see Installation). The release page opens so you can update by hand.
+- Anything else: *General → Show log*, then [open an issue](https://github.com/s1nn3r/EizoSwitcher/issues) – I'm happy to help.
 
-## Protocol
+## Building from source
 
-Reconstructed from `libmctrl_x64.dll` / `libemc_x64.dll` of ColorNavigator 7.2.9 and verified on hardware. See [PROTOCOL.md](PROTOCOL.md).
+You need the [.NET 10 SDK](https://dotnet.microsoft.com/download).
 
-## License
+```
+dotnet build
+.\tools\release.ps1 -Version 1.2.3                                   # package to artifacts\1.2.3
+.\tools\release.ps1 -Version 1.2.3 -CertThumbprint <sha1>            # + Authenticode signing
+.\tools\release.ps1 -Version 1.2.3 -CertThumbprint <sha1> -Publish   # + GitHub release
+```
 
-MIT, see [LICENSE](LICENSE).
+| Project | |
+|---|---|
+| `src/EizoSwitcher.Core` | USB HID protocol, monitor access, translations |
+| `src/EizoSwitcher` | tray app (Avalonia UI) |
+| `src/EizoSwitcher.Cli` | `eizoswitch` command line tool |
+| `tools/` | release script, icon renderer, translation helper |
+
+**Translations** live in `src/EizoSwitcher.Core/Lang/*.json`, keyed by the English text. `python tools/extract_strings.py --check` lists missing entries. Corrections and new languages are very welcome as pull requests.
+
+The USB protocol was reconstructed from ColorNavigator 7 and is documented in [PROTOCOL.md](PROTOCOL.md).
+
+## ☕ Buy me a coffee
+
+EizoSwitcher is free and will stay free. If it saves you a few clicks every day – or a grade in the wrong color space – I'd be really happy about a coffee:
+
+<p>
+  <a href="https://www.paypal.com/donate/?business=marc.breuer%40giant-online.de&currency_code=EUR&item_name=EizoSwitcher">
+    <img src="https://img.shields.io/badge/PayPal-Buy%20me%20a%20coffee-0070BA?logo=paypal&logoColor=white" alt="Donate with PayPal">
+  </a>
+</p>
+
+PayPal: **marc.breuer@giant-online.de**
+
+Thank you! ❤️
+
+---
+
+<sub>EIZO, ColorEdge, FlexScan and ColorNavigator are trademarks of EIZO Corporation. EizoSwitcher is an independent project and is not affiliated with or endorsed by EIZO. Use at your own risk. Licensed under the [MIT License](LICENSE).</sub>

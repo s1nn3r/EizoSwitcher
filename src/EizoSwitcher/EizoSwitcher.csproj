@@ -5,12 +5,29 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <AssemblyName>EizoSwitcher</AssemblyName>
+    <ApplicationIcon>Assets\EizoSwitcher.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Version>1.0.0</Version>
+    <Product>EizoSwitcher</Product>
+    <Authors>Marc Breuer</Authors>
+    <Copyright>© 2026 Marc Breuer</Copyright>
+    <Description>Switches EIZO color modes and blanks displays depending on running programs and games.</Description>
+    <SatelliteResourceLanguages>en;de</SatelliteResourceLanguages>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Update="config.json" CopyToOutputDirectory="PreserveNewest" />
+    <AvaloniaResource Include="Assets\EizoSwitcher.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
+    <PackageReference Include="System.Drawing.Common" Version="10.0.13" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EizoSwitcher.Core\EizoSwitcher.Core.csproj" />
   </ItemGroup>
 
 </Project>

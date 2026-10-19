@@ -1,0 +1,70 @@
+<#
+.SYNOPSIS
+  Builds, optionally signs and publishes an EizoSwitcher release.
+
+.EXAMPLE
+  .\tools\release.ps1 -Version 1.0.0                                   # build + package only
+  .\tools\release.ps1 -Version 1.0.0 -CertThumbprint 0123ABCD...       # + Authenticode signing
+  .\tools\release.ps1 -Version 1.0.0 -CertThumbprint 0123... -Publish  # + GitHub release (needs gh)
+
+.NOTES
+  Output: artifacts\<version>\EizoSwitcher-win-x64.zip (+ .sha256), the asset names the auto-updater expects.
+  Signing uses signtool from the Windows SDK and a certificate from the current user's store.
+#>
+param(
+    [Parameter(Mandatory)][ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version,
+    [string]$CertThumbprint,
+    [string]$TimestampUrl = 'http://timestamp.digicert.com',
+    [switch]$Publish
+)
+$ErrorActionPreference = 'Stop'
+$root = Split-Path $PSScriptRoot -Parent
+$out = Join-Path $root "artifacts\$Version"
+$pkg = Join-Path $out 'package'
+Remove-Item $out -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force $pkg | Out-Null
+
+Write-Host "== Tray app (self-contained single file)" -ForegroundColor Cyan
+dotnet publish "$root\src\EizoSwitcher\EizoSwitcher.csproj" -c Release -r win-x64 --self-contained `
+    -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
+    -p:DebugType=none -p:Version=$Version -o "$out\app" --nologo -v q
+if ($LASTEXITCODE) { throw 'publish app failed' }
+
+Write-Host "== Command line tool (Native AOT)" -ForegroundColor Cyan
+dotnet publish "$root\src\EizoSwitcher.Cli\EizoSwitcher.Cli.csproj" -c Release -r win-x64 `
+    -p:DebugType=none -p:Version=$Version -o "$out\cli" --nologo -v q
+if ($LASTEXITCODE) {
+    # Native AOT needs the MSVC linker (Visual Studio "Desktop development with C++").
+    Write-Warning 'Native AOT failed, falling back to a trimmed self-contained single file'
+    dotnet publish "$root\src\EizoSwitcher.Cli\EizoSwitcher.Cli.csproj" -c Release -r win-x64 --self-contained `
+        -p:PublishAot=false -p:PublishTrimmed=true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true `
+        -p:DebugType=none -p:Version=$Version -o "$out\cli" --nologo -v q
+    if ($LASTEXITCODE) { throw 'publish cli failed' }
+}
+
+Copy-Item "$out\app\EizoSwitcher.exe", "$out\cli\eizoswitch.exe" $pkg
+Copy-Item "$root\LICENSE" $pkg
+
+if ($CertThumbprint) {
+    Write-Host "== Signing" -ForegroundColor Cyan
+    $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue |
+        Sort-Object FullName -Descending | Select-Object -First 1
+    if (-not $signtool) { throw 'signtool.exe not found (install the Windows SDK)' }
+    & $signtool.FullName sign /sha1 $CertThumbprint /fd sha256 /tr $TimestampUrl /td sha256 `
+        /d EizoSwitcher /du "https://github.com/s1nn3r/EizoSwitcher" "$pkg\EizoSwitcher.exe" "$pkg\eizoswitch.exe"
+    if ($LASTEXITCODE) { throw 'signing failed' }
+}
+
+$zip = Join-Path $out 'EizoSwitcher-win-x64.zip'
+Compress-Archive "$pkg\*" $zip -CompressionLevel Optimal
+$hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+"$hash  EizoSwitcher-win-x64.zip" | Set-Content "$zip.sha256" -NoNewline -Encoding ascii
+
+Get-ChildItem $pkg, $zip | Format-Table Name, @{ n = 'MB'; e = { [math]::Round($_.Length / 1MB, 1) } } -AutoSize
+Write-Host "SHA-256: $hash"
+
+if ($Publish) {
+    Write-Host "== GitHub release v$Version" -ForegroundColor Cyan
+    gh release create "v$Version" $zip "$zip.sha256" --title "EizoSwitcher $Version" --generate-notes
+    if ($LASTEXITCODE) { throw 'gh release create failed' }
+}

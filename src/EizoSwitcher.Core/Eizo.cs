@@ -9,7 +9,7 @@ namespace EizoSwitcher;
 ///   Set       = SetFeature 0x02 [A u16][B u16][PIN u16][value...]
 ///   Identity  = feature report 0x08: ASCII serial (8) + model (16)
 /// </summary>
-internal static class Eizo
+public static class Eizo
 {
     const byte RidSet = 0x02, RidGet = 0x03, RidPin = 0x06, RidIdentity = 0x08;
     const int ShortPayload = 38; // report 0x02/0x03 size without report ID
@@ -18,7 +18,7 @@ internal static class Eizo
     {
         var buf = new byte[d.FeatureReportLength];
         buf[0] = RidPin;
-        if (!d.GetFeature(buf)) throw new IOException("PIN nicht lesbar");
+        if (!d.GetFeature(buf)) throw new IOException("PIN not readable");
         return BitConverter.ToUInt16(buf, 1);
     }
 
@@ -30,7 +30,6 @@ internal static class Eizo
         return (Encoding.ASCII.GetString(buf, 1, 8).Trim(), Encoding.ASCII.GetString(buf, 9, 16).Trim());
     }
 
-    public static string Model(EizoHidDevice d) { var (s, m) = Identity(d); return $"{m} ({s})"; }
 
     static byte[] Packet(byte rid, int len, ushort a, ushort b, ushort pin, ReadOnlySpan<byte> data)
     {
@@ -78,7 +77,34 @@ internal static class Eizo
         if (!Set(d, PageName, UsageNameSel, BitConverter.GetBytes(index))) return null;
         var r = Get(d, PageName, UsageName);
         if (r == null) return null;
-        int end = Array.IndexOf(r, (byte)0);
-        return Encoding.ASCII.GetString(r, 0, end < 0 ? r.Length : end).Trim();
+        // OSD charset: printable ASCII plus 0x01 = "®" (e.g. "Adobe®RGB")
+        var sb = new StringBuilder();
+        foreach (byte b in r)
+        {
+            if (b == 0) break;
+            if (b == 0x01) sb.Append('®');
+            else if (b >= 0x20 && b < 0x7F) sb.Append((char)b);
+        }
+        return sb.ToString().Trim();
+    }
+
+    /// <summary>Loose comparison for user input: "AdobeRGB" matches "Adobe®RGB", case and spaces ignored.</summary>
+    public static bool SameModeName(string a, string b)
+    {
+        static string Key(string s) => new([.. s.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant)]);
+        return a.Equals(b, StringComparison.OrdinalIgnoreCase) || Key(a) == Key(b);
+    }
+
+    /// <summary>All mode names. The monitor clamps out-of-range indices, so the list ends at the first repeated name.</summary>
+    public static List<string> GetModeNames(EizoHidDevice d)
+    {
+        var names = new List<string>();
+        for (int i = 0; i < 32; i++)
+        {
+            var n = GetModeName(d, i);
+            if (string.IsNullOrEmpty(n) || (names.Count > 0 && names[^1] == n)) break;
+            names.Add(n);
+        }
+        return names;
     }
 }
