@@ -36,6 +36,7 @@ ColorNavigator can switch modes – but only when *you* click. There is no "when
 - **Real EIZO color modes over USB** – it reads the mode names straight from the monitor (User, BT.709, sRGB, CAL, …). ColorNavigator can stay installed, but doesn't have to.
 - **Every display, any brand** – displays without EIZO USB control can be blanked **black** (works with any monitor) or **turned off** via DDC/CI. Perfect for gaming without a bright second screen in the corner of your eye.
 - **Game detection** – DirectX fullscreen, borderless fullscreen, the Windows game list and your Steam / Epic / GOG / Ubisoft / EA / Xbox libraries.
+- **Windows color profile included** – together with the mode, EizoSwitcher sets the matching ICC profile as the display's Windows default, so Photoshop & co. color-manage correctly. It uses the profiles ColorNavigator created per mode, or any profile you pick.
 - **Back to normal** – close the program and your defaults apply again. If you change a mode by hand on the monitor, EizoSwitcher respects it until the next program starts or ends.
 - **Lives in the tray** – current mode per display at a glance, manual switching, pause.
 - **Updates itself** from GitHub releases (checksum-verified, signature-checked once releases are signed).
@@ -97,6 +98,8 @@ The mode each EIZO returns to when none of your programs and no game is running.
 
 Everything EizoSwitcher knows about your displays, plus buttons to switch by hand and to test *Black* and *Turn off*.
 
+For EIZO displays you also choose the **color profile per mode** here. *Automatic* picks the profile ColorNavigator created for that mode (e.g. `CG279X(12345678)10CAL.icc`); you can also select any installed profile or *Leave unchanged*. The whole feature can be turned off under *General*.
+
 ### 5. General
 
 Language, light/dark theme, autostart, notifications, updates.
@@ -156,7 +159,7 @@ eizoswitch list --json                 machine-readable output
 
 - **"No EIZO monitor found"** – check the USB cable between the monitor's USB upstream port and the PC. ColorNavigator isn't required, but may keep running.
 - **"Turn off" isn't offered** – the display doesn't answer DDC/CI, or DDC/CI is disabled in its menu. Use *Black* instead.
-- **The Windows color profile doesn't change** – ColorNavigator also switches the Windows ICC profile together with the mode; EizoSwitcher currently only switches the monitor. If ColorNavigator runs in parallel, it picks up the change itself.
+- **The Windows color profile doesn't change** – check *General → Also switch the Windows color profile* and the profile per mode under *Displays*. "Automatic" needs the profiles ColorNavigator creates – if a mode was never used with ColorNavigator, pick a profile by hand.
 - **Updates fail** – EizoSwitcher needs to live in a folder you can write to (see Installation). The release page opens so you can update by hand.
 - Anything else: *General → Show log*, then [open an issue](https://github.com/s1nn3r/EizoSwitcher/issues) – I'm happy to help.
 

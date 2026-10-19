@@ -169,7 +169,11 @@ public sealed class SwitchEngine : IDisposable
                     Log.Write($"{d.Name}: mode \"{action}\" does not exist (available: {string.Join(", ", d.Eizo.Modes)})");
                     return true;
                 }
-                if (d.Eizo.CurrentMode == index) return true;
+                if (d.Eizo.CurrentMode == index)
+                {
+                    displays_.ApplyProfile(d, index); // mode already right – make sure the profile is too
+                    return true;
+                }
                 if (!displays_.SetMode(d, index))
                 {
                     Log.Write($"{d.Name}: switching to \"{action}\" failed, retrying");

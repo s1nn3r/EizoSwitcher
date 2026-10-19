@@ -16,6 +16,7 @@ internal static class Screenshots
         Directory.CreateDirectory(dir);
         using var displays = new DisplayService();
         displays.Refresh();
+        Ui.DemoSerials.AddRange(displays.Displays.Select(d => d.Serial));
 
         using var form = new SettingsForm(DemoSettings(displays), displays, new GameDetector(), null)
         {

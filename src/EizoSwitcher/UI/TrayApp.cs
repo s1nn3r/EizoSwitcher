@@ -24,6 +24,7 @@ internal sealed class TrayApp : ApplicationContext, IBlackout
         settings_ = settings;
         Log.Write($"EizoSwitcher {Updater.Current} started");
 
+        displays_.ProfileFor = (d, index) => ColorProfiles.For(settings_, d, index);
         engine_ = new SwitchEngine(displays_, this, settings_);
         engine_.Switched += msg => Ui(() => { if (settings_.ShowNotifications) Notify(msg); });
         engine_.StateChanged += () => Ui(UpdateTooltip);

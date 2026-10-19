@@ -13,6 +13,8 @@ public sealed record DisplayInfo(
     public MonitorState? Eizo { get; init; }
     /// <summary>Filled in by <see cref="DisplayService"/>: monitor answers DDC/CI power commands.</summary>
     public bool SupportsPower { get; init; }
+    /// <summary>Windows monitor device id ("MONITOR\ENC3041\{…}\0002"), used for color profiles.</summary>
+    public string MonitorDeviceId { get; init; } = "";
 
     public bool IsEizo => Eizo != null;
 }
@@ -66,12 +68,23 @@ public sealed class DisplayService : IDisposable
         return ok;
     }
 
+    /// <summary>Which Windows color profile belongs to a display's mode (null = leave unchanged). Set by the app.</summary>
+    public Func<DisplayInfo, int, string?>? ProfileFor { get; set; }
+
     public bool SetMode(DisplayInfo d, int index)
     {
         if (d.Eizo == null || !Eizo.SetMode(d.Eizo.Serial, index)) return false;
         PollEizo();
+        ApplyProfile(d, index);
         Changed?.Invoke();
         return true;
+    }
+
+    /// <summary>Makes the color profile of the given mode the display's Windows default (if one is configured/found).</summary>
+    public void ApplyProfile(DisplayInfo d, int index)
+    {
+        if (ProfileFor?.Invoke(d, index) is { } profile && ColorProfiles.SetDefault(d.MonitorDeviceId, profile, out bool changed) && changed)
+            Log.Write($"{d.Name}: color profile {profile}");
     }
 
     /// <summary>DDC/CI VCP 0xD6 (power mode): 1 = on, 4 = off (DPM off, wakes up via DDC).</summary>
@@ -115,7 +128,7 @@ public sealed class DisplayService : IDisposable
         {
             var dd = new Win32.DISPLAY_DEVICE { cb = System.Runtime.InteropServices.Marshal.SizeOf<Win32.DISPLAY_DEVICE>() };
             Edid? edid = null;
-            string instance = device;
+            string instance = device, monitorId = "";
             // EDD_GET_DEVICE_INTERFACE_NAME: DeviceID = \\?\DISPLAY#ENC3041#5&...&UID33027#{guid}
             for (uint i = 0; Win32.EnumDisplayDevices(device, i, ref dd, 1); i++)
             {
@@ -124,13 +137,17 @@ public sealed class DisplayService : IDisposable
                 if (parts.Length < 3) continue;
                 instance = $@"DISPLAY\{parts[1]}\{parts[2]}";
                 edid = Edid.FromRegistry(instance);
+                // same monitor without the flag: DeviceID = MONITOR\ENC3041\{class guid}\0002 (color management id)
+                var plain = new Win32.DISPLAY_DEVICE { cb = dd.cb };
+                if (Win32.EnumDisplayDevices(device, i, ref plain, 0)) monitorId = plain.DeviceID;
                 break;
             }
 
             string name = edid?.Name ?? device.TrimStart('\\', '.');
             string serial = edid?.SerialText ?? "";
             string id = serial.Length > 0 ? serial : edid != null ? $"{edid.Manufacturer}{edid.ProductCode:X4}-{edid.SerialNumber}" : instance;
-            result.Add(new DisplayInfo(id, name, Vendor(edid?.Manufacturer), serial, device, r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top, primary));
+            result.Add(new DisplayInfo(id, name, Vendor(edid?.Manufacturer), serial, device, r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top, primary)
+                { MonitorDeviceId = monitorId });
         }
         return result;
     }

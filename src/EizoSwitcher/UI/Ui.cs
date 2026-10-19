@@ -17,6 +17,17 @@ internal static class Ui
 
     public static string Serial(string serial) => Demo && serial.Length > 0 ? "12345678" : serial;
 
+    /// <summary>Screenshot mode: replaces a serial number inside other text (e.g. profile file names).</summary>
+    public static string Mask(string text, string serial)
+    {
+        if (!Demo) return text;
+        foreach (var s in DemoSerials.Append(serial).Where(s => s.Length > 0)) text = text.Replace(s, "12345678");
+        return text;
+    }
+
+    /// <summary>Screenshot mode: all serial numbers that must not appear anywhere.</summary>
+    public static List<string> DemoSerials { get; } = [];
+
     public static Icon AppIcon(Size size)
     {
         using var s = typeof(Ui).Assembly.GetManifestResourceStream("EizoSwitcher.ico")!;

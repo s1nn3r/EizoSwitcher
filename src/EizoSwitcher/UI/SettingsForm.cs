@@ -18,6 +18,8 @@ internal sealed class SettingsForm : Form
     private DataGridView grid_ = new();
     private readonly Dictionary<string, ComboBox> defaultBoxes_ = [];
     private readonly Dictionary<string, ComboBox> gameBoxes_ = [];
+    private readonly Dictionary<(string Id, string Mode), ComboBox> profileBoxes_ = [];
+    private CheckBox profiles_ = null!;
     private CheckBox gamesEnabled_ = null!, gExclusive_ = null!, gBorderless_ = null!, gWinList_ = null!, gLibraries_ = null!;
     private ListBox extraFolders_ = null!;
     private TextBox exclusions_ = null!;
@@ -408,8 +410,33 @@ internal sealed class SettingsForm : Form
 
     // ================================================================= Displays
 
+    private List<(string Mode, ComboBox Box)> ProfileLines(DisplayInfo d)
+    {
+        var installed = ColorProfiles.Installed();
+        var map = work_.ColorProfiles.GetValueOrDefault(d.Id);
+        var lines = new List<(string, ComboBox)>();
+        for (int i = 0; i < d.Eizo!.Modes.Count; i++)
+        {
+            string mode = d.Eizo.Modes[i];
+            string prefix = $"{d.Eizo.Model}({d.Eizo.Serial}){i + 1:00}";
+            string? cn = installed.FirstOrDefault(f => f.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+            var opts = new List<Opt>
+            {
+                new("", cn != null ? L.T("Automatisch: {0}", "Automatic: {0}", Ui.Mask(cn, d.Serial))
+                                   : L.T("Automatisch (kein ColorNavigator-Profil gefunden)", "Automatic (no ColorNavigator profile found)")),
+                new(ColorProfiles.Keep, L.T("Nicht ändern", "Leave unchanged")),
+            };
+            opts.AddRange(installed.Select(f => new Opt(f, Ui.Mask(f, d.Serial))));
+            var box = Ui.Combo(opts, map?.GetValueOrDefault(mode) ?? "", 420);
+            profileBoxes_[(d.Id, mode)] = box;
+            lines.Add((mode, box));
+        }
+        return lines;
+    }
+
     private Control DisplaysTab()
     {
+        profileBoxes_.Clear();
         var p = new PageBuilder();
         p.Span(Ui.Flow(new Label { Text = L.T("Bildschirme", "Displays"), Font = Ui.HeadingFont, AutoSize = true, Margin = new Padding(0, 0, 16, 6) },
                        Ui.Button(L.T("Neu einlesen", "Rescan"), () => tray_?.RefreshDisplays())))
@@ -427,6 +454,8 @@ internal sealed class SettingsForm : Form
                        Ui.Text($"{d.Width} × {d.Height}  @ {d.X}, {d.Y}{(d.Primary ? L.T("  (Hauptbildschirm)", "  (primary)") : "")}"));
             p.Line(L.T("EIZO-USB-Steuerung", "EIZO USB control"), Ui.Text(Yes(d.IsEizo)));
             p.Line(L.T("DDC/CI ausschalten", "DDC/CI power off"), Ui.Text(Yes(d.SupportsPower)));
+            if (d.MonitorDeviceId.Length > 0)
+                p.Line(L.T("Windows-Farbprofil", "Windows color profile"), Ui.Text(Ui.Mask(ColorProfiles.GetDefault(d.MonitorDeviceId) ?? "—", d.Serial)));
 
             var actions = Ui.Flow();
             if (d.Eizo != null)
@@ -440,6 +469,7 @@ internal sealed class SettingsForm : Form
                     Task.Run(() => displays_.SetMode(d, i)).ContinueWith(_ => BeginInvoke(() => { Collect(); BuildTabs(); }));
                 }));
             }
+            var profileLines = d.Eizo != null && d.MonitorDeviceId.Length > 0 ? ProfileLines(d) : [];
             if (d.Width > 0 && tray_ != null)
             {
                 actions.Controls.Add(Ui.Button(L.T("3 s schwarz testen", "Test black (3 s)"), () =>
@@ -454,6 +484,13 @@ internal sealed class SettingsForm : Form
                     Task.Run(() => { displays_.SetPower(d, false); Thread.Sleep(5000); displays_.SetPower(d, true); })));
             }
             p.Span(actions);
+
+            if (profileLines.Count > 0)
+            {
+                p.Hint(L.T("Farbprofil je Modus – wird beim Umschalten als Windows-Standardprofil dieses Bildschirms gesetzt:",
+                           "Color profile per mode – set as this display's Windows default profile when switching:"));
+                foreach (var (mode, box) in profileLines) p.Line(mode, box);
+            }
         }
 
         foreach (var k in work_.Displays.Where(k => displays_.Displays.All(d => d.Id != k.Id)))
@@ -482,8 +519,11 @@ internal sealed class SettingsForm : Form
         autostart_ = Ui.Check(L.T("Mit Windows starten", "Start with Windows"), work_.StartWithWindows);
         notify_ = Ui.Check(L.T("Beim Umschalten kurz benachrichtigen", "Show a short notification when switching"), work_.ShowNotifications);
         poll_ = new NumericUpDown { Minimum = 250, Maximum = 10000, Increment = 250, Value = Math.Clamp(work_.PollIntervalMs, 250, 10000), Width = 90, Margin = new Padding(0, 3, 6, 3) };
+        profiles_ = Ui.Check(L.T("Windows-Farbprofil mitschalten", "Also switch the Windows color profile"), work_.SwitchColorProfiles);
         p.Section(L.T("Start und Verhalten", "Startup and behavior"))
-         .Span(autostart_).Span(notify_)
+         .Span(autostart_).Span(notify_).Span(profiles_)
+         .Hint(L.T("   Setzt beim Umschalten das passende ICC-Profil als Windows-Standard des Bildschirms, so wie ColorNavigator. Einstellbar je Modus unter „Bildschirme“.",
+                   "   Sets the matching ICC profile as the display's Windows default when switching, like ColorNavigator does. Adjustable per mode under \"Displays\"."), 20)
          .Line(L.T("Prozesse prüfen alle", "Check processes every"), Ui.Flow(poll_, Ui.Text("ms")))
          .Hint(L.T("Kleinere Werte schalten schneller um, kosten aber minimal mehr CPU. 1500 ms sind ein guter Wert.",
                    "Smaller values switch faster at a tiny CPU cost. 1500 ms is a good value."));
@@ -556,6 +596,15 @@ internal sealed class SettingsForm : Form
         }
         g.ExtraFolders = [.. extraFolders_.Items.Cast<string>()];
         g.ExcludedProcesses = [.. exclusions_.Text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct(StringComparer.OrdinalIgnoreCase)];
+
+        foreach (var ((id, mode), box) in profileBoxes_)
+        {
+            string t = Ui.Token(box);
+            if (!work_.ColorProfiles.TryGetValue(id, out var map)) work_.ColorProfiles[id] = map = [];
+            if (t.Length == 0) map.Remove(mode); else map[mode] = t;
+            if (map.Count == 0) work_.ColorProfiles.Remove(id);
+        }
+        work_.SwitchColorProfiles = profiles_.Checked;
 
         work_.StartWithWindows = autostart_.Checked;
         work_.ShowNotifications = notify_.Checked;
