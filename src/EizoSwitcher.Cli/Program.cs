@@ -37,18 +37,25 @@ switch (cmd)
     {
         var selected = positional.Length > 1 ? Select(positional[1]) : monitors;
         if (selected == null) return 1;
-        if (json) { Out.Json(selected.Select(m => new MonitorJson(m.Model, m.Serial, m.CurrentMode, m.CurrentModeName, m.Modes))); return 0; }
+        if (json)
+        {
+            Out.Json(selected.Select(m => new MonitorJson(m.Model, m.Serial, m.CurrentMode, m.CurrentModeName, m.Modes)
+                { Enabled = [.. Enumerable.Range(0, m.Modes.Count).Select(m.IsEnabled)] }));
+            return 0;
+        }
         foreach (var m in selected)
         {
             Out.Line();
             Out.Heading(m.Model, m.Serial);
             for (int i = 0; i < m.Modes.Count; i++)
             {
-                bool active = i == m.CurrentMode;
-                Out.Write(active ? "  ● " : "    ", active ? ConsoleColor.Green : null);
+                bool current = i == m.CurrentMode, enabled = m.IsEnabled(i);
+                ConsoleColor? color = current ? ConsoleColor.Green : enabled ? null : ConsoleColor.DarkGray;
+                Out.Write(current ? "  ● " : "    ", color);
                 Out.Write($"{i,2}  ", ConsoleColor.DarkGray);
-                Out.Write(m.Modes[i].PadRight(16), active ? ConsoleColor.Green : null);
-                if (active) Out.Write(L.T("aktiv", "active"), ConsoleColor.DarkGray);
+                Out.Write(m.Modes[i].PadRight(16), color);
+                if (current) Out.Write(L.T("aktuell", "current") + " ", ConsoleColor.DarkGray);
+                if (!enabled) Out.Write(L.T("(am Monitor deaktiviert)", "(disabled on the monitor)"), ConsoleColor.DarkGray);
                 Out.Line();
             }
         }
@@ -205,7 +212,10 @@ static void Help()
     Out.Line();
 }
 
-internal sealed record MonitorJson(string Model, string Serial, int ModeIndex, string Mode, IReadOnlyList<string>? Modes);
+internal sealed record MonitorJson(string Model, string Serial, int ModeIndex, string Mode, IReadOnlyList<string>? Modes)
+{
+    public IReadOnlyList<bool>? Enabled { get; init; }
+}
 
 internal static class Out
 {

@@ -175,5 +175,7 @@
   "normal": "normale",
   "not connected": "non collegato",
   "yes": "sì",
-  "{0} is not connected": "{0} non è collegato"
+  "{0} is not connected": "{0} non è collegato",
+  "current": "attuale",
+  "(disabled on the monitor)": "(disattivato sul monitor)"
 }

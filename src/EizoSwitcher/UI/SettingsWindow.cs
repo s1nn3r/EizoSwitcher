@@ -12,7 +12,7 @@ namespace EizoSwitcher.UI;
 internal sealed class SettingsWindow : Window
 {
     /// <summary>One display column: live data if connected, otherwise what we remembered.</summary>
-    private sealed record Col(string Id, string Name, bool Connected, bool IsEizo, bool CanTurnOff, IReadOnlyList<string> Modes, string? Current);
+    private sealed record Col(string Id, string Name, bool Connected, bool IsEizo, bool CanTurnOff, IReadOnlyList<string> Modes, IReadOnlyList<bool> Enabled, string? Current);
 
     private sealed class RuleRow
     {
@@ -155,22 +155,23 @@ internal sealed class SettingsWindow : Window
     }
 
     private static string Signature(List<Col> cols) =>
-        string.Join("|", cols.Select(c => $"{c.Id}:{c.Name}:{c.Connected}:{c.CanTurnOff}:{string.Join(",", c.Modes)}"));
+        string.Join("|", cols.Select(c => $"{c.Id}:{c.Name}:{c.Connected}:{c.CanTurnOff}:{string.Join(",", c.Modes)}:{string.Join("", c.Enabled.Select(e => e ? 1 : 0))}"));
 
     private List<Col> BuildColumns()
     {
-        var cols = displays_.Displays.Select(d => new Col(d.Id, d.Name, true, d.IsEizo, d.CanTurnOff, d.Eizo?.Modes ?? [], d.Eizo?.CurrentModeName)).ToList();
+        var cols = displays_.Displays.Select(d => new Col(d.Id, d.Name, true, d.IsEizo, d.CanTurnOff, d.Eizo?.Modes ?? [], d.Eizo?.Enabled ?? [], d.Eizo?.CurrentModeName)).ToList();
         foreach (var k in work_.Displays.Where(k => cols.All(c => c.Id != k.Id)))
-            cols.Add(new Col(k.Id, k.Name, false, k.IsEizo, k.CanTurnOff, k.Modes, null));
+            cols.Add(new Col(k.Id, k.Name, false, k.IsEizo, k.CanTurnOff, k.Modes, k.ModesEnabled, null));
         return [.. cols.Select(c => cols.Count(x => x.Name == c.Name) > 1 ? c with { Name = $"{c.Name} ({Ui.Serial(c.Id)[^4..]})" } : c)];
     }
 
     private static List<Opt> Options(Col c, bool special)
     {
         var list = new List<Opt> { new("", "—") };
-        list.AddRange(c.Modes.Select(m => new Opt(m, m)));
+        list.AddRange(Ui.ModeOptions(c.Modes, c.Enabled));
         if (special)
         {
+            if (c.Modes.Count > 0) list.Add(Opt.Separator);
             list.Add(new Opt(DisplayAction.Black, "■  " + DisplayAction.Text(DisplayAction.Black)));
             list.Add(new Opt(DisplayAction.Off, "⏻  " + DisplayAction.Text(DisplayAction.Off)));
         }
@@ -514,12 +515,12 @@ internal sealed class SettingsWindow : Window
 
             if (d.Eizo != null)
             {
-                var box = Ui.Combo(d.Eizo.Modes.Select(m => new Opt(m, m)), d.Eizo.CurrentModeName, 220);
+                var box = Ui.Combo(Ui.ModeOptions(d.Eizo.Modes, d.Eizo.Enabled), d.Eizo.CurrentModeName, 220);
                 content.Children.Add(Ui.Setting(Icons.Color, L.T("Farbmodus jetzt umschalten", "Switch color mode now"), null,
                     Ui.Row(8, box, Ui.Button(L.T("Aktivieren", "Activate"), () =>
                     {
-                        int i = box.SelectedIndex;
-                        Task.Run(() => displays_.SetMode(d, i));
+                        int i = d.Eizo.IndexOf(Ui.Token(box));
+                        if (i >= 0) Task.Run(() => displays_.SetMode(d, i));
                     }, primary: true))));
             }
 

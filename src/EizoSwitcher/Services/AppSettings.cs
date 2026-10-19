@@ -69,6 +69,8 @@ public sealed class KnownDisplay
     public bool IsEizo { get; set; }
     public bool CanTurnOff { get; set; }
     public List<string> Modes { get; set; } = [];
+    /// <summary>Per mode: enabled on the monitor (empty = unknown).</summary>
+    public List<bool> ModesEnabled { get; set; } = [];
     public DateTime LastSeen { get; set; }
 }
 

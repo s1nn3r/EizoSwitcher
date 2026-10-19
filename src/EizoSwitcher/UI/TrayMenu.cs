@@ -40,13 +40,20 @@ internal static class TrayMenu
             item.Header = new TextBlock { Text = $"{d.Name}:  {s.StateOf(d)}" + (reason.Length > 0 ? $"   ({reason})" : ""), Margin = new Thickness(0, 0, 18, 0) };
             if (d.Eizo != null)
             {
-                for (int i = 0; i < d.Eizo.Modes.Count; i++)
+                // modes enabled on the monitor first, the disabled ones below a separator
+                foreach (bool enabledGroup in new[] { true, false })
                 {
-                    int index = i;
-                    var mi = Item(d.Eizo.Modes[i], () => a.SetMode(d, index));
-                    mi.IsCheckable = true;
-                    mi.IsChecked = i == d.Eizo.CurrentMode;
-                    item.Items.Add(mi);
+                    var indices = Enumerable.Range(0, d.Eizo.Modes.Count).Where(i => d.Eizo.IsEnabled(i) == enabledGroup).ToList();
+                    if (indices.Count == 0) continue;
+                    if (!enabledGroup) item.Items.Add(new Separator());
+                    foreach (int index in indices)
+                    {
+                        var mi = Item(d.Eizo.Modes[index], () => a.SetMode(d, index));
+                        mi.IsCheckable = true;
+                        mi.IsChecked = index == d.Eizo.CurrentMode;
+                        if (!enabledGroup) mi.Opacity = 0.6;
+                        item.Items.Add(mi);
+                    }
                 }
                 item.Items.Add(new Separator());
             }

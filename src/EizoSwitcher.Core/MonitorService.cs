@@ -5,6 +5,11 @@ public sealed record MonitorState(string Serial, string Model, IReadOnlyList<str
 {
     public string CurrentModeName => CurrentMode >= 0 && CurrentMode < Modes.Count ? Modes[CurrentMode] : $"#{CurrentMode}";
 
+    /// <summary>Per mode: enabled on the monitor (offered when cycling through modes). Empty = unknown, all enabled.</summary>
+    public IReadOnlyList<bool> Enabled { get; init; } = [];
+
+    public bool IsEnabled(int index) => index >= Enabled.Count || Enabled[index];
+
     public int IndexOf(string mode)
     {
         for (int i = 0; i < Modes.Count; i++)
@@ -44,7 +49,10 @@ public sealed class MonitorService : IDisposable
                     var (serial, model) = Eizo.Identity(d);
                     if (serial.Length == 0 || states.ContainsKey(serial)) { d.Dispose(); continue; }
                     var modes = Eizo.GetModeNames(d);
-                    states[serial] = new MonitorState(serial, model, modes, Eizo.GetMode(d) ?? -1);
+                    states[serial] = new MonitorState(serial, model, modes, Eizo.GetMode(d) ?? -1)
+                    {
+                        Enabled = Eizo.GetModesEnabled(d, modes.Count) ?? [],
+                    };
                     devices_.Add((d, serial));
                 }
                 catch (Exception e) when (e is IOException or System.ComponentModel.Win32Exception)
@@ -58,21 +66,37 @@ public sealed class MonitorService : IDisposable
         Changed?.Invoke();
     }
 
-    /// <summary>Re-reads the current mode of every monitor. Returns false if a device stopped answering.</summary>
+    private int polls_;
+
+    /// <summary>Re-reads the current mode of every monitor (and now and then which modes are enabled).
+    /// Returns false if a device stopped answering.</summary>
     public bool PollCurrentModes()
     {
         bool changed = false, ok = true;
         lock (lock_)
         {
+            bool readEnabled = ++polls_ % 10 == 0; // enabling modes in the monitor menu is rare
             foreach (var (d, serial) in devices_)
             {
                 int? cur = TryGetMode(d);
                 if (cur == null) { ok = false; continue; }
-                if (states_[serial].CurrentMode != cur)
+                var state = states_[serial];
+                if (state.CurrentMode != cur)
                 {
-                    states_[serial] = states_[serial] with { CurrentMode = cur.Value };
+                    state = state with { CurrentMode = cur.Value };
                     changed = true;
                 }
+                if (readEnabled)
+                {
+                    bool[]? enabled = null;
+                    try { enabled = Eizo.GetModesEnabled(d, state.Modes.Count); } catch (IOException) { }
+                    if (enabled != null && !enabled.SequenceEqual(state.Enabled))
+                    {
+                        state = state with { Enabled = enabled };
+                        changed = true;
+                    }
+                }
+                states_[serial] = state;
             }
         }
         if (changed) Changed?.Invoke();

@@ -175,5 +175,7 @@
   "normal": "normaal",
   "not connected": "niet aangesloten",
   "yes": "ja",
-  "{0} is not connected": "{0} is niet aangesloten"
+  "{0} is not connected": "{0} is niet aangesloten",
+  "current": "huidig",
+  "(disabled on the monitor)": "(uitgeschakeld op de monitor)"
 }

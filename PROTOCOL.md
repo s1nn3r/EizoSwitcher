@@ -34,6 +34,7 @@ The `page:usage` pair is a 32-bit control ID, e.g. `0xFF0000F3` → page `0xFF00
 | Control ID | Access | Meaning |
 |------------|--------|---------|
 | `0xFF0000F3` | get/set (i32) | Current color mode index |
+| `0xFF0000F4` | get (bytes) | Enabled modes: one byte per mode index, `1` = enabled (offered when cycling modes on the monitor), `0` = disabled ("mode skip") |
 | `0xFF0100DB` | set (i32) | Mode-name selector (index) |
 | `0xFF0100DC` | get (bytes) | Name of the selected mode (NUL terminated) |
 | `0x00820010` | get | Brightness (VESA VCP 0x10; raw value, e.g. 247 on a CG279X) |

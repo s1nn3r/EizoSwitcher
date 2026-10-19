@@ -148,9 +148,10 @@ internal sealed class TrayApp : IBlackout
             var k = s.Displays.FirstOrDefault(x => x.Id == d.Id);
             if (k == null) { k = new KnownDisplay { Id = d.Id }; s.Displays.Add(k); changed = true; }
             var modes = d.Eizo?.Modes.ToList() ?? [];
-            if (k.Name != d.Name || k.IsEizo != d.IsEizo || k.CanTurnOff != d.CanTurnOff || !k.Modes.SequenceEqual(modes))
+            var enabled = d.Eizo?.Enabled.ToList() ?? [];
+            if (k.Name != d.Name || k.IsEizo != d.IsEizo || k.CanTurnOff != d.CanTurnOff || !k.Modes.SequenceEqual(modes) || !k.ModesEnabled.SequenceEqual(enabled))
             {
-                (k.Name, k.IsEizo, k.CanTurnOff, k.Modes) = (d.Name, d.IsEizo, d.CanTurnOff, modes);
+                (k.Name, k.IsEizo, k.CanTurnOff, k.Modes, k.ModesEnabled) = (d.Name, d.IsEizo, d.CanTurnOff, modes, enabled);
                 changed = true;
             }
             k.LastSeen = DateTime.Now;

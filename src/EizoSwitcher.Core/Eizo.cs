@@ -66,6 +66,17 @@ public static class Eizo
     const ushort PageMode = 0xFF00, UsageMode = 0x00F3;              // current color mode index
     const ushort PageName = 0xFF01, UsageNameSel = 0x00DB, UsageName = 0x00DC; // name selector / name bytes
 
+    // one byte per mode: 1 = enabled (offered when cycling on the monitor), 0 = skipped ("mode skip")
+    const ushort UsageModeEnabled = 0x00F4;
+
+    /// <summary>Which modes are enabled on the monitor; null if not readable.</summary>
+    public static bool[]? GetModesEnabled(EizoHidDevice d, int count)
+    {
+        var r = Get(d, PageMode, UsageModeEnabled);
+        if (r == null || count == 0 || r.Take(count).All(b => b == 0)) return null; // all zero = not supported
+        return [.. Enumerable.Range(0, count).Select(i => i >= r.Length || r[i] != 0)];
+    }
+
     public static int? GetMode(EizoHidDevice d)
         => Get(d, PageMode, UsageMode) is { } r ? BitConverter.ToInt32(r, 0) : null;
 

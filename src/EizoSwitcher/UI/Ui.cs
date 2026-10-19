@@ -6,9 +6,12 @@ using System.Windows.Media.Imaging;
 
 namespace EizoSwitcher.UI;
 
-/// <summary>Combo box entry: a token (mode name, "@black", …) with a display text.</summary>
-internal sealed record Opt(string Token, string Label)
+/// <summary>Combo box entry: a token (mode name, "@black", …) with a display text. Dim = shown greyed out.</summary>
+internal sealed record Opt(string Token, string Label, bool Dim = false)
 {
+    /// <summary>Not an entry: draws a separator line in combo boxes.</summary>
+    public static readonly Opt Separator = new("\u0000separator", "");
+
     public override string ToString() => Label;
 }
 
@@ -147,13 +150,41 @@ internal static class Ui
         var list = options.ToList();
         if (selected != null && list.All(o => !o.Token.Equals(selected, StringComparison.OrdinalIgnoreCase)))
             list.Add(new Opt(selected, selected + "  ⚠"));
-        var box = new ComboBox { ItemsSource = list, Width = width, MinWidth = 0, VerticalAlignment = VerticalAlignment.Center };
-        box.SelectedItem = list.FirstOrDefault(o => o.Token.Equals(selected ?? "", StringComparison.OrdinalIgnoreCase)) ?? list[0];
+        var box = new ComboBox { Width = width, MinWidth = 0, VerticalAlignment = VerticalAlignment.Center };
+        ComboBoxItem? first = null, chosen = null;
+        foreach (var o in list)
+        {
+            if (ReferenceEquals(o, Opt.Separator))
+            {
+                if (box.Items.Count > 0) box.Items.Add(new Separator());
+                continue;
+            }
+            var item = new ComboBoxItem { Content = o.Label, Tag = o };
+            if (o.Dim) item.SetResourceReference(Control.ForegroundProperty, "TextFillColorSecondaryBrush");
+            box.Items.Add(item);
+            first ??= item;
+            if (chosen == null && o.Token.Equals(selected ?? "", StringComparison.OrdinalIgnoreCase)) chosen = item;
+        }
+        box.SelectedItem = chosen ?? first;
         if (changed != null) box.SelectionChanged += (_, _) => changed();
         return box;
     }
 
-    public static string Token(ComboBox box) => (box.SelectedItem as Opt)?.Token ?? "";
+    public static string Token(ComboBox box) => ((box.SelectedItem as ComboBoxItem)?.Tag as Opt)?.Token ?? "";
+
+    /// <summary>Modes enabled on the monitor first, then a separator and the disabled ones (greyed out).</summary>
+    public static IEnumerable<Opt> ModeOptions(IReadOnlyList<string> modes, IReadOnlyList<bool> enabled)
+    {
+        bool On(int i) => i >= enabled.Count || enabled[i];
+        for (int i = 0; i < modes.Count; i++)
+            if (On(i)) yield return new Opt(modes[i], modes[i]);
+        if (Enumerable.Range(0, modes.Count).Any(i => !On(i)))
+        {
+            yield return Opt.Separator;
+            for (int i = 0; i < modes.Count; i++)
+                if (!On(i)) yield return new Opt(modes[i], modes[i], Dim: true);
+        }
+    }
 
     /// <summary>Card surface like in the Windows 11 settings.</summary>
     public static Border Card(UIElement content, Thickness? padding = null)

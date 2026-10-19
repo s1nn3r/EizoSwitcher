@@ -73,6 +73,17 @@ internal static class Screenshots
         t.Start();
         Dispatcher.PushFrame(frame);
         Capture(menu, path);
+
+        // mode submenu of the first EIZO display (enabled modes, separator, disabled ones)
+        if (menu.Items.OfType<System.Windows.Controls.MenuItem>().FirstOrDefault(i => i.Items.Count > 2) is { } sub)
+        {
+            sub.IsSubmenuOpen = true;
+            frame = new DispatcherFrame();
+            t.Start();
+            Dispatcher.PushFrame(frame);
+            if (sub.Template.FindName("PART_Popup", sub) is System.Windows.Controls.Primitives.Popup { Child: FrameworkElement child })
+                Capture(child, Path.ChangeExtension(path, null) + "-modes.png");
+        }
         menu.IsOpen = false;
     }
 
@@ -110,7 +121,7 @@ internal static class Screenshots
         foreach (var d in displays.Displays)
         {
             if (d.Eizo != null) s.Defaults[d.Id] = d.Eizo.CurrentModeName;
-            s.Displays.Add(new KnownDisplay { Id = d.Id, Name = d.Name, IsEizo = d.IsEizo, CanTurnOff = d.CanTurnOff, Modes = d.Eizo?.Modes.ToList() ?? [] });
+            s.Displays.Add(new KnownDisplay { Id = d.Id, Name = d.Name, IsEizo = d.IsEizo, CanTurnOff = d.CanTurnOff, Modes = d.Eizo?.Modes.ToList() ?? [], ModesEnabled = d.Eizo?.Enabled.ToList() ?? [] });
         }
         return s;
     }
