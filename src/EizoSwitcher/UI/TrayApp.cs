@@ -45,6 +45,12 @@ internal sealed class TrayApp : IBlackout
 
         // invisible helper window: the context menu needs a foreground window to close when clicking elsewhere
         menuHost_ = new Window { Width = 1, Height = 1, Left = -10000, Top = -10000, WindowStyle = WindowStyle.None, ShowInTaskbar = false, ShowActivated = false, AllowsTransparency = true, Background = Brushes.Transparent };
+        // tool window: otherwise Task Manager lists EizoSwitcher under "Apps" instead of background processes
+        menuHost_.SourceInitialized += (_, _) =>
+        {
+            var hwnd = new WindowInteropHelper(menuHost_).Handle;
+            OverlayWindow.SetWindowLong(hwnd, -20, OverlayWindow.GetWindowLong(hwnd, -20) | 0x00000080 /* WS_EX_TOOLWINDOW */);
+        };
         menuHost_.Show();
 
         tray_ = new Forms.NotifyIcon { Icon = UI.Ui.TrayIcon(Forms.SystemInformation.SmallIconSize), Text = "EizoSwitcher", Visible = true };
@@ -293,8 +299,8 @@ internal sealed class OverlayWindow : Window
     private readonly DisplayInfo display_;
 
     [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
-    [DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr hwnd, int index);
-    [DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr hwnd, int index, int value);
+    [DllImport("user32.dll")] internal static extern int GetWindowLong(IntPtr hwnd, int index);
+    [DllImport("user32.dll")] internal static extern int SetWindowLong(IntPtr hwnd, int index, int value);
 
     public OverlayWindow(DisplayInfo d)
     {
