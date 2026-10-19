@@ -7,12 +7,11 @@ using Microsoft.Win32;
 namespace EizoSwitcher.Services;
 
 /// <summary>
-/// Detects running games. There is no single reliable signal, so several are combined:
-///  1. foreground app in exclusive Direct3D fullscreen (SHQueryUserNotificationState)
-///  2. foreground window covering a whole monitor (borderless fullscreen)
+/// Decides whether the program in the foreground is a game. There is no single reliable signal, so several are combined:
+///  1. exclusive Direct3D fullscreen (SHQueryUserNotificationState)
+///  2. window covering a whole monitor (borderless fullscreen)
 ///  3. executables Windows itself classified as games (Game Bar: HKCU\System\GameConfigStore)
-///  4. executables inside launcher libraries (Steam, Epic, GOG, Ubisoft, EA, Xbox) that have a window
-/// A game detected via 1/2 stays "active" until its process exits, so alt-tabbing does not flip the mode.
+///  4. executables inside launcher libraries (Steam, Epic, GOG, Ubisoft, EA, Xbox) or extra folders
 /// </summary>
 [SupportedOSPlatform("windows")]
 public sealed partial class GameDetector
@@ -20,46 +19,20 @@ public sealed partial class GameDetector
     private DateTime nextScan_ = DateTime.MinValue;
     private List<string> libraries_ = [];
     private HashSet<string> windowsGames_ = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<int, string> sticky_ = [];
 
     public IReadOnlyList<string> Libraries { get { Rescan(); return libraries_; } }
 
-    /// <summary>Returns the name of a running game or null.</summary>
-    public string? Detect(ProcessSnapshot snap, GameSettings s)
+    /// <summary>Returns the game's name if the foreground program is a game, else null.</summary>
+    public string? Detect(ForegroundApp fg, GameSettings s)
     {
         Rescan();
-        var excluded = s.ExcludedProcesses.Select(ProcessNames.Normalize).ToHashSet();
-        var byId = snap.Processes.ToDictionary(p => p.Id);
-
-        foreach (var pid in sticky_.Keys.Where(id => !byId.ContainsKey(id)).ToList()) sticky_.Remove(pid);
-
-        if (s.DetectExclusiveFullscreen || s.DetectBorderlessFullscreen)
-        {
-            var hwnd = Win32.GetForegroundWindow();
-            Win32.GetWindowThreadProcessId(hwnd, out int pid);
-            if (byId.TryGetValue(pid, out var fg) && pid != Environment.ProcessId && !excluded.Contains(fg.Key)
-                && ((s.DetectExclusiveFullscreen && Win32.IsExclusiveFullscreen()) || (s.DetectBorderlessFullscreen && Win32.IsFullscreenWindow(hwnd))))
-                sticky_[pid] = fg.Name;
-        }
-        foreach (var (pid, name) in sticky_)
-            if (byId.TryGetValue(pid, out var p) && !excluded.Contains(p.Key)) return name;
-
-        var roots = (s.UseLauncherLibraries ? libraries_ : []).Concat(s.ExtraFolders)
-            .Select(r => r.TrimEnd('\\') + "\\").ToList();
-        foreach (var p in snap.Processes)
-        {
-            if (p.Path == null || excluded.Contains(p.Key)) continue;
-            if (s.UseWindowsGameList && windowsGames_.Contains(p.Path)) return p.Name;
-            if (roots.Any(r => p.Path.StartsWith(r, StringComparison.OrdinalIgnoreCase)) && HasWindow(p.Id)) return p.Name;
-        }
-        return null;
-    }
-
-    private static bool HasWindow(int pid)
-    {
-        try { using var p = Process.GetProcessById(pid); return p.MainWindowHandle != IntPtr.Zero; }
-        catch (ArgumentException) { return false; }
-        catch (InvalidOperationException) { return false; }
+        if (s.ExcludedProcesses.Any(x => ProcessNames.Normalize(x) == fg.Key)) return null;
+        if (s.DetectExclusiveFullscreen && Win32.IsExclusiveFullscreen()) return fg.Name;
+        if (s.DetectBorderlessFullscreen && Win32.IsFullscreenWindow(fg.Window)) return fg.Name;
+        if (fg.Path == null) return null;
+        if (s.UseWindowsGameList && windowsGames_.Contains(fg.Path)) return fg.Name;
+        var roots = (s.UseLauncherLibraries ? libraries_ : []).Concat(s.ExtraFolders).Select(r => r.TrimEnd('\\') + "\\");
+        return roots.Any(r => fg.Path.StartsWith(r, StringComparison.OrdinalIgnoreCase)) ? fg.Name : null;
     }
 
     private void Rescan()

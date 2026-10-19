@@ -67,7 +67,7 @@ public sealed class KnownDisplay
     public string Id { get; set; } = "";
     public string Name { get; set; } = "";
     public bool IsEizo { get; set; }
-    public bool SupportsPower { get; set; }
+    public bool CanTurnOff { get; set; }
     public List<string> Modes { get; set; } = [];
     public DateTime LastSeen { get; set; }
 }
@@ -84,6 +84,8 @@ public sealed class AppSettings
     public string Language { get; set; } = "";
     /// <summary>"light", "dark" or empty = follow Windows.</summary>
     public string Theme { get; set; } = "";
+    /// <summary>Display id -> how "turn off" works for it (see <see cref="OffMethod"/>); missing = disconnect.</summary>
+    public Dictionary<string, string> OffMethods { get; set; } = [];
     /// <summary>Also switch the Windows color profile (ICC) of the display together with the mode.</summary>
     public bool SwitchColorProfiles { get; set; } = true;
     /// <summary>Display id -> mode name -> profile file name ("@keep" = leave unchanged); missing = ColorNavigator's profile.</summary>

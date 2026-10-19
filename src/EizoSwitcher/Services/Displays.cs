@@ -11,15 +11,16 @@ public sealed record DisplayInfo(
 {
     /// <summary>Filled in by <see cref="DisplayService"/>: EIZO USB control available.</summary>
     public MonitorState? Eizo { get; init; }
-    /// <summary>Filled in by <see cref="DisplayService"/>: monitor answers DDC/CI power commands.</summary>
-    public bool SupportsPower { get; init; }
     /// <summary>Windows monitor device id ("MONITOR\ENC3041\{…}\0002"), used for color profiles.</summary>
     public string MonitorDeviceId { get; init; } = "";
 
     public bool IsEizo => Eizo != null;
+
+    /// <summary>Can be turned off (disconnected from the desktop): every active display except the primary one.</summary>
+    public bool CanTurnOff => DeviceName.Length > 0 && !Primary;
 }
 
-/// <summary>Enumerates displays, links them to EIZO USB devices (EDID serial = USB serial) and drives DDC/CI power.</summary>
+/// <summary>Enumerates displays and links them to EIZO USB devices (EDID serial = USB serial).</summary>
 [SupportedOSPlatform("windows")]
 public sealed class DisplayService : IDisposable
 {
@@ -31,14 +32,14 @@ public sealed class DisplayService : IDisposable
 
     public IReadOnlyList<DisplayInfo> Displays { get { lock (lock_) return displays_; } }
 
-    /// <summary>Re-reads everything: Windows displays, EIZO USB devices (modes) and DDC/CI support.</summary>
+    /// <summary>Re-reads everything: Windows displays and EIZO USB devices (mode names, current mode).</summary>
     public void Refresh()
     {
         Eizo.Refresh();
         var eizo = Eizo.Monitors.ToDictionary(m => m.Serial);
         var list = new List<DisplayInfo>();
         foreach (var d in EnumerateDisplays())
-            list.Add(d with { Eizo = eizo.GetValueOrDefault(d.Serial), SupportsPower = ProbePower(d.DeviceName) });
+            list.Add(d with { Eizo = eizo.GetValueOrDefault(d.Serial) });
 
         // EIZO monitors connected via USB but not (yet) active on the desktop
         foreach (var m in eizo.Values.Where(m => list.All(d => d.Serial != m.Serial)))
@@ -46,19 +47,20 @@ public sealed class DisplayService : IDisposable
 
         lock (lock_) displays_ = [.. list.OrderBy(d => d.X).ThenBy(d => d.Y)];
         Log.Write("Displays: " + string.Join(", ", list.Select(d =>
-            $"{d.Name} [{d.Id}]{(d.IsEizo ? " EIZO-USB" : "")}{(d.SupportsPower ? " DDC" : "")}")));
+            $"{d.Name} [{d.Id}]{(d.IsEizo ? " EIZO-USB" : "")}{(d.Primary ? " primary" : "")}{(d.DeviceName.Length == 0 ? " not on desktop" : "")}")));
         Changed?.Invoke();
     }
 
-    /// <summary>Cheap check whether the set of displays changed (for periodic polling).</summary>
-    public bool TopologyChanged()
+    /// <summary>Cheap check whether the set of desktop displays changed; returns a description or null.</summary>
+    public string? TopologyChange()
     {
-        var now = EnumerateDisplays().Select(d => d.Id + d.DeviceName).Order();
-        lock (lock_)
-            return !now.SequenceEqual(displays_.Where(d => d.DeviceName != "").Select(d => d.Id + d.DeviceName).Order());
+        var now = EnumerateDisplays().Select(d => $"{d.Name}@{d.DeviceName}").Order().ToList();
+        List<string> before;
+        lock (lock_) before = [.. displays_.Where(d => d.DeviceName != "").Select(d => $"{d.Name}@{d.DeviceName}").Order()];
+        return now.SequenceEqual(before) ? null : $"{string.Join(", ", before)} -> {string.Join(", ", now)}";
     }
 
-    /// <summary>Updates the EIZO current-mode cache. Returns false if a device stopped answering.</summary>
+    /// <summary>Updates the EIZO current-mode cache. Returns false if a device did not answer this time.</summary>
     public bool PollEizo()
     {
         bool ok = Eizo.PollCurrentModes();
@@ -87,30 +89,8 @@ public sealed class DisplayService : IDisposable
             Log.Write($"{d.Name}: color profile {profile}");
     }
 
-    /// <summary>DDC/CI VCP 0xD6 (power mode): 1 = on, 4 = off (DPM off, wakes up via DDC).</summary>
-    public bool SetPower(DisplayInfo d, bool on) =>
-        WithPhysicalMonitor(d.DeviceName, h => Win32.SetVCPFeature(h, 0xD6, on ? 1u : 4u));
-
-    private static bool ProbePower(string deviceName) =>
-        WithPhysicalMonitor(deviceName, h => Win32.GetVCPFeatureAndVCPFeatureReply(h, 0xD6, IntPtr.Zero, out _, out _));
-
-    private static bool WithPhysicalMonitor(string deviceName, Func<IntPtr, bool> action)
-    {
-        if (deviceName.Length == 0) return false;
-        IntPtr hmon = IntPtr.Zero;
-        Win32.EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, (h, _, _, _) =>
-        {
-            var mi = new Win32.MONITORINFOEX { cbSize = System.Runtime.InteropServices.Marshal.SizeOf<Win32.MONITORINFOEX>() };
-            if (Win32.GetMonitorInfo(h, ref mi) && mi.szDevice == deviceName) hmon = h;
-            return true;
-        }, IntPtr.Zero);
-        if (hmon == IntPtr.Zero || !Win32.GetNumberOfPhysicalMonitorsFromHMONITOR(hmon, out uint n) || n == 0) return false;
-
-        var phys = new Win32.PHYSICAL_MONITOR[n];
-        if (!Win32.GetPhysicalMonitorsFromHMONITOR(hmon, n, phys)) return false;
-        try { return phys.Any(p => action(p.hPhysicalMonitor)); }
-        finally { Win32.DestroyPhysicalMonitors(n, phys); }
-    }
+    /// <summary>Disconnects exactly these displays (GDI names) from the desktop; all others are (re)connected.</summary>
+    public bool SetDisconnected(IReadOnlySet<string> deviceNames) => DisplayConfig.Apply(deviceNames);
 
     /// <summary>Active desktop displays with EDID name/serial from the registry.</summary>
     internal static List<DisplayInfo> EnumerateDisplays()

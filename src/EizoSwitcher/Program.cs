@@ -27,6 +27,7 @@ internal static class Program
                 return 0;
             }
             Task.Run(Updater.CleanupOldFiles);
+            DisplayConfig.RecoverAfterCrash();
         }
 
         var settings = AppSettings.Load();

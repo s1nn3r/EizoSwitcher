@@ -100,9 +100,9 @@ internal sealed class SettingsForm : Form
 
     private List<Col> BuildColumns()
     {
-        var cols = displays_.Displays.Select(d => new Col(d.Id, d.Name, true, d.IsEizo, d.SupportsPower, d.Eizo?.Modes ?? [], d.Eizo?.CurrentModeName)).ToList();
+        var cols = displays_.Displays.Select(d => new Col(d.Id, d.Name, true, d.IsEizo, d.CanTurnOff, d.Eizo?.Modes ?? [], d.Eizo?.CurrentModeName)).ToList();
         foreach (var k in work_.Displays.Where(k => cols.All(c => c.Id != k.Id)))
-            cols.Add(new Col(k.Id, k.Name, false, k.IsEizo, k.SupportsPower, k.Modes, null));
+            cols.Add(new Col(k.Id, k.Name, false, k.IsEizo, k.CanTurnOff, k.Modes, null));
         // same model twice: append the end of the serial so the columns can be told apart
         return [.. cols.Select(c => cols.Count(x => x.Name == c.Name) > 1 ? c with { Name = $"{c.Name} ({Ui.Serial(c.Id)[^4..]})" } : c)];
     }
@@ -453,7 +453,7 @@ internal sealed class SettingsForm : Form
                 p.Line(L.T("Auflösung / Position", "Resolution / position"),
                        Ui.Text($"{d.Width} × {d.Height}  @ {d.X}, {d.Y}{(d.Primary ? L.T("  (Hauptbildschirm)", "  (primary)") : "")}"));
             p.Line(L.T("EIZO-USB-Steuerung", "EIZO USB control"), Ui.Text(Yes(d.IsEizo)));
-            p.Line(L.T("DDC/CI ausschalten", "DDC/CI power off"), Ui.Text(Yes(d.SupportsPower)));
+            p.Line(L.T("Ausschalten möglich", "Can be turned off"), Ui.Text(Yes(d.CanTurnOff)));
             if (d.MonitorDeviceId.Length > 0)
                 p.Line(L.T("Windows-Farbprofil", "Windows color profile"), Ui.Text(Ui.Mask(ColorProfiles.GetDefault(d.MonitorDeviceId) ?? "—", d.Serial)));
 
@@ -477,11 +477,6 @@ internal sealed class SettingsForm : Form
                     tray_.Show(d);
                     Task.Delay(3000).ContinueWith(_ => tray_.Hide(d.Id));
                 }));
-            }
-            if (d.SupportsPower)
-            {
-                actions.Controls.Add(Ui.Button(L.T("5 s ausschalten testen", "Test power off (5 s)"), () =>
-                    Task.Run(() => { displays_.SetPower(d, false); Thread.Sleep(5000); displays_.SetPower(d, true); })));
             }
             p.Span(actions);
 

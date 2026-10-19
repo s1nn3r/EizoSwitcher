@@ -65,7 +65,7 @@ internal static class Screenshots
         foreach (var d in displays.Displays)
         {
             if (d.Eizo != null) s.Defaults[d.Id] = d.Eizo.CurrentModeName;
-            s.Displays.Add(new KnownDisplay { Id = d.Id, Name = d.Name, IsEizo = d.IsEizo, SupportsPower = d.SupportsPower, Modes = d.Eizo?.Modes.ToList() ?? [] });
+            s.Displays.Add(new KnownDisplay { Id = d.Id, Name = d.Name, IsEizo = d.IsEizo, CanTurnOff = d.CanTurnOff, Modes = d.Eizo?.Modes.ToList() ?? [] });
         }
         return s;
     }

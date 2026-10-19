@@ -10,40 +10,46 @@ public interface IBlackout
 }
 
 /// <summary>
-/// Decides per display what should be active and applies it:
-/// first matching program rule (top to bottom) &gt; running game &gt; default.
-/// Only switches when the desired action changes, so manual changes on the monitor are kept until then.
+/// Decides per display what should be active and applies it. Only the program in the <b>foreground</b> counts:
+/// its rule applies; if it is a game, the game settings apply; otherwise the defaults. Clicking taskbar, desktop
+/// or start menu keeps the current state. Reacts immediately to foreground changes (WinEvent hook) and polls
+/// as a fallback. Only switches when the desired action changes, so manual changes are kept until then.
 /// </summary>
 [SupportedOSPlatform("windows")]
 public sealed class SwitchEngine : IDisposable
 {
     private readonly DisplayService displays_;
     private readonly IBlackout blackout_;
-    private readonly ProcessWatcher watcher_ = new();
+    private readonly ForegroundWatcher foreground_ = new();
     private readonly Dictionary<string, string> applied_ = [];          // display id -> action last applied
     private readonly HashSet<string> blackShown_ = [];
-    private readonly Dictionary<string, DisplayInfo> poweredOff_ = [];
-    private readonly object lock_ = new();
+    private readonly Dictionary<string, (DisplayInfo Display, string Method)> off_ = [];
     private readonly List<string> pending_ = [];
+    private readonly object lock_ = new();
     private System.Threading.Timer? timer_;
     private volatile AppSettings settings_;
     private volatile bool invalidate_, refreshRequested_ = true;
     private DateTime nextTopologyCheck_;
+    private int pollFailures_;
+    private ForegroundApp? app_;
 
     public SwitchEngine(DisplayService displays, IBlackout blackout, AppSettings settings)
     {
         displays_ = displays;
         blackout_ = blackout;
         settings_ = settings;
+        foreground_.Changed += () => timer_?.Change(40, Timeout.Infinite); // evaluate right away
     }
 
     public GameDetector Games { get; } = new();
 
-    /// <summary>Display id -> why its current action is active (rule name, game, default).</summary>
+    /// <summary>Display id -> why its current action is active (program, game, default).</summary>
     public IReadOnlyDictionary<string, string> Reasons { get; private set; } = new Dictionary<string, string>();
     public string? ActiveGame { get; private set; }
+    /// <summary>The program that currently decides (foreground, shell surfaces ignored).</summary>
+    public string? ActiveProgram { get; private set; }
 
-    /// <summary>Human readable "Display: action (reason)" after a switch.</summary>
+    /// <summary>Human readable summary after switching.</summary>
     public event Action<string>? Switched;
     public event Action? StateChanged;
     /// <summary>Displays were re-enumerated (new monitor, different modes, ...).</summary>
@@ -71,15 +77,25 @@ public sealed class SwitchEngine : IDisposable
             try
             {
                 var now = DateTime.UtcNow;
-                if (refreshRequested_ || (now >= nextTopologyCheck_ && displays_.TopologyChanged()))
+                string? reason = refreshRequested_ ? "requested" : now >= nextTopologyCheck_ ? displays_.TopologyChange() : null;
+                if (now >= nextTopologyCheck_) nextTopologyCheck_ = now.AddSeconds(10);
+                if (reason != null)
                 {
+                    Log.Write($"Reading displays ({reason})");
                     refreshRequested_ = false;
                     displays_.Refresh();
                     invalidate_ = true;
                     DisplaysRefreshed?.Invoke();
                 }
-                if (now >= nextTopologyCheck_) nextTopologyCheck_ = now.AddSeconds(10);
-                if (!displays_.PollEizo()) refreshRequested_ = true;
+
+                // ColorNavigator talks to the monitor at the same time, so a single missed answer is normal
+                if (displays_.PollEizo()) pollFailures_ = 0;
+                else if (++pollFailures_ >= 5)
+                {
+                    pollFailures_ = 0;
+                    refreshRequested_ = true;
+                    Log.Write("EIZO monitor did not answer repeatedly – rescanning");
+                }
                 Evaluate();
             }
             catch (Exception e)
@@ -98,17 +114,24 @@ public sealed class SwitchEngine : IDisposable
         var s = settings_;
         if (invalidate_) { invalidate_ = false; applied_.Clear(); }
 
-        bool needPaths = s.Rules.Any(r => r.Enabled && r.MatchPath)
-            || (s.Games.Enabled && (s.Games.UseWindowsGameList || s.Games.UseLauncherLibraries || s.Games.ExtraFolders.Count > 0));
-        var snap = watcher_.Take(needPaths);
-        var active = s.Rules.Where(r => r.Enabled && Matches(r, snap)).ToList();
-        string? game = s.Games.Enabled ? Games.Detect(snap, s.Games) : null;
+        // shell surfaces (taskbar, desktop, start menu) are neutral: keep the program that was in front before
+        var fg = ForegroundWatcher.Current();
+        if (fg != null) app_ = fg;
+        else if (app_ != null && !ForegroundWatcher.IsRunning(app_.Pid)) app_ = null;
+
+        var rules = app_ == null ? [] : s.Rules.Where(r => r.Enabled && Matches(r, app_)).ToList();
+        string? game = app_ != null && s.Games.Enabled ? Games.Detect(app_, s.Games) : null;
+
+        // displays we disconnected are no longer listed by Windows – keep evaluating them
+        var all = displays_.Displays.ToList();
+        foreach (var (d, _) in off_.Values) if (all.All(x => x.Id != d.Id)) all.Add(d);
 
         var reasons = new Dictionary<string, string>();
-        foreach (var d in displays_.Displays)
+        bool offChanged = false;
+        foreach (var d in all)
         {
             string action = "", reason = "";
-            foreach (var r in active)
+            foreach (var r in rules)
                 if (r.Actions.TryGetValue(d.Id, out var a) && a.Length > 0) { action = a; reason = r.Name; break; }
             if (action.Length == 0 && game != null && s.Games.Actions.TryGetValue(d.Id, out var g) && g.Length > 0)
                 (action, reason) = (g, L.T("Spiel: ", "Game: ") + game);
@@ -119,29 +142,42 @@ public sealed class SwitchEngine : IDisposable
             reasons[d.Id] = reason;
 
             if (applied_.TryGetValue(d.Id, out var prev) && prev == action) continue;
-            if (Apply(d, action, reason)) applied_[d.Id] = action;
+            if (Apply(d, action, reason, s, ref offChanged)) applied_[d.Id] = action;
         }
 
-        if (pending_.Count > 0) { Switched?.Invoke(string.Join(Environment.NewLine, pending_)); pending_.Clear(); }
+        if (offChanged) ApplyOff();
 
-        bool changed = game != ActiveGame || reasons.Count != Reasons.Count || reasons.Any(kv => Reasons.GetValueOrDefault(kv.Key) != kv.Value);
+        if (pending_.Count > 0)
+        {
+            Switched?.Invoke(string.Join(Environment.NewLine, pending_));
+            pending_.Clear();
+        }
+
+        bool changed = game != ActiveGame || app_?.Name != ActiveProgram || reasons.Count != Reasons.Count
+                       || reasons.Any(kv => Reasons.GetValueOrDefault(kv.Key) != kv.Value);
         ActiveGame = game;
+        ActiveProgram = app_?.Name;
         Reasons = reasons;
         if (changed) StateChanged?.Invoke();
     }
 
-    private static bool Matches(ProcessRule r, ProcessSnapshot snap) =>
+    private static bool Matches(ProcessRule r, ForegroundApp app) =>
         r.MatchPath && !string.IsNullOrEmpty(r.ExePath)
-            ? snap.Processes.Any(p => string.Equals(p.Path, r.ExePath, StringComparison.OrdinalIgnoreCase))
-            : snap.Keys.Contains(r.ProcessKey);
+            ? string.Equals(app.Path, r.ExePath, StringComparison.OrdinalIgnoreCase)
+            : r.ProcessKey == app.Key;
 
     /// <returns>false = temporary failure, retry on the next tick.</returns>
-    private bool Apply(DisplayInfo d, string action, string reason)
+    private bool Apply(DisplayInfo d, string action, string reason, AppSettings s, ref bool offChanged)
     {
         // leave special states first
         bool wasSpecial = false;
         if (action != DisplayAction.Black && blackShown_.Remove(d.Id)) { blackout_.Hide(d.Id); wasSpecial = true; }
-        if (action != DisplayAction.Off && poweredOff_.Remove(d.Id, out var off)) { displays_.SetPower(off, true); wasSpecial = true; }
+        if (action != DisplayAction.Off && off_.Remove(d.Id, out var off))
+        {
+            if (off.Method != OffMethod.Disconnect) Ddc.SetPower(off.Display.DeviceName, 1);
+            else offChanged = true;
+            wasSpecial = true;
+        }
 
         switch (action)
         {
@@ -156,8 +192,24 @@ public sealed class SwitchEngine : IDisposable
                 return true;
 
             case DisplayAction.Off:
-                if (d.SupportsPower && displays_.SetPower(d, false)) poweredOff_[d.Id] = d;
-                else { blackout_.Show(d); blackShown_.Add(d.Id); } // no DDC/CI: black instead
+                if (off_.ContainsKey(d.Id)) return true; // already off (e.g. re-evaluated after the display vanished)
+                string method = s.OffMethods.GetValueOrDefault(d.Id) ?? OffMethod.Disconnect;
+                if (method == OffMethod.Disconnect && !d.CanTurnOff)
+                {
+                    // the primary display cannot be disconnected – blank it instead
+                    blackout_.Show(d);
+                    blackShown_.Add(d.Id);
+                }
+                else if (method == OffMethod.Disconnect)
+                {
+                    off_[d.Id] = (d, method);
+                    offChanged = true;
+                }
+                else
+                {
+                    Ddc.SetPower(d.DeviceName, method == OffMethod.DdcOff ? 5u : 4u);
+                    off_[d.Id] = (d, method);
+                }
                 Notify(d, action, reason);
                 return true;
 
@@ -184,6 +236,21 @@ public sealed class SwitchEngine : IDisposable
         }
     }
 
+    /// <summary>Disconnects exactly the displays that should be off via "disconnect".</summary>
+    private void ApplyOff()
+    {
+        var names = off_.Values.Where(o => o.Method == OffMethod.Disconnect).Select(o => o.Display.DeviceName).ToHashSet();
+        if (displays_.SetDisconnected(names)) return;
+
+        // Windows refused: fall back to black overlays
+        foreach (var (id, (d, method)) in off_.Where(o => o.Value.Method == OffMethod.Disconnect).ToList())
+        {
+            off_.Remove(id);
+            blackout_.Show(d);
+            blackShown_.Add(id);
+        }
+    }
+
     private void Notify(DisplayInfo d, string action, string reason)
     {
         string msg = $"{d.Name}: {DisplayAction.Text(action)}" + (reason.Length > 0 ? $"  ·  {reason}" : "");
@@ -191,15 +258,16 @@ public sealed class SwitchEngine : IDisposable
         pending_.Add(msg);
     }
 
-    /// <summary>Restores black/off displays (on exit or pause).</summary>
+    /// <summary>Restores black/off displays (on exit).</summary>
     public void RestoreAll()
     {
         lock (lock_)
         {
             foreach (var id in blackShown_) blackout_.Hide(id);
             blackShown_.Clear();
-            foreach (var d in poweredOff_.Values) displays_.SetPower(d, true);
-            poweredOff_.Clear();
+            foreach (var (d, method) in off_.Values.Where(o => o.Method != OffMethod.Disconnect)) Ddc.SetPower(d.DeviceName, 1);
+            off_.Clear();
+            DisplayConfig.Restore();
             applied_.Clear();
         }
     }
@@ -207,6 +275,7 @@ public sealed class SwitchEngine : IDisposable
     public void Dispose()
     {
         timer_?.Dispose();
+        foreground_.Dispose();
         RestoreAll();
     }
 }

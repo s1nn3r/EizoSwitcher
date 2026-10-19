@@ -153,9 +153,9 @@ internal sealed class TrayApp : ApplicationContext, IBlackout
             var k = s.Displays.FirstOrDefault(x => x.Id == d.Id);
             if (k == null) { k = new KnownDisplay { Id = d.Id }; s.Displays.Add(k); changed = true; }
             var modes = d.Eizo?.Modes.ToList() ?? [];
-            if (k.Name != d.Name || k.IsEizo != d.IsEizo || k.SupportsPower != d.SupportsPower || !k.Modes.SequenceEqual(modes))
+            if (k.Name != d.Name || k.IsEizo != d.IsEizo || k.CanTurnOff != d.CanTurnOff || !k.Modes.SequenceEqual(modes))
             {
-                (k.Name, k.IsEizo, k.SupportsPower, k.Modes) = (d.Name, d.IsEizo, d.SupportsPower, modes);
+                (k.Name, k.IsEizo, k.CanTurnOff, k.Modes) = (d.Name, d.IsEizo, d.CanTurnOff, modes);
                 changed = true;
             }
             k.LastSeen = DateTime.Now;
