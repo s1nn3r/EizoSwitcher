@@ -3,17 +3,17 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using EizoSwitcher.Services;
-using Wpf.Ui.Controls;
-using WpfUi = Wpf.Ui.Controls;
 
 namespace EizoSwitcher.UI;
 
 /// <summary>Pick one or more running programs (with icon, description and window title).</summary>
-internal sealed class ProcessPickerWindow : FluentWindow
+internal sealed class ProcessPickerWindow : Window
 {
+    private static UIElement Dim(FrameworkElement e) { e.Opacity = 0.5; return e; }
+
     public sealed record Entry(string ExeName, string? Path, string Description, string WindowTitle);
 
-    private readonly WpfUi.TextBox search_ = new() { PlaceholderText = L.T("Suchen …", "Search …"), Icon = new SymbolIcon { Symbol = SymbolRegular.Search24 }, Width = 320 };
+    private readonly TextBox search_ = new() { Width = 320, VerticalContentAlignment = VerticalAlignment.Center };
     private readonly CheckBox windowsOnly_ = new() { Content = L.T("Nur Programme mit Fenster", "Only programs with a window"), IsChecked = true, Margin = new Thickness(16, 0, 0, 0) };
     private readonly System.Windows.Controls.ListView list_ = new() { SelectionMode = SelectionMode.Multiple };
     private List<Entry> all_ = [];
@@ -26,14 +26,13 @@ internal sealed class ProcessPickerWindow : FluentWindow
         Width = 820;
         Height = 620;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        ExtendsContentIntoTitleBar = true;
-        WindowBackdropType = WindowBackdropType.Mica;
         ShowInTaskbar = false;
+        Icon = Ui.AppIcon;
 
         list_.ItemTemplate = null;
         list_.MouseDoubleClick += (_, _) => Accept();
 
-        var top = Ui.Row(0, search_, windowsOnly_, Ui.Button(L.T("Aktualisieren", "Refresh"), Load, SymbolRegular.ArrowSync24));
+        var top = Ui.Row(0, Ui.Icon(Icons.Search), search_, windowsOnly_, Ui.Button(L.T("Aktualisieren", "Refresh"), Load, Icons.Refresh));
         top.Margin = new Thickness(0, 0, 0, 8);
         top.Children[^1].SetValue(MarginProperty, new Thickness(16, 0, 0, 0));
         var hint = Ui.Caption(L.T("Mehrfachauswahl per Klick. Tipp: Starte das Programm vorher, damit es hier erscheint.",
@@ -41,7 +40,7 @@ internal sealed class ProcessPickerWindow : FluentWindow
         hint.Margin = new Thickness(0, 0, 0, 8);
         var buttons = Ui.Row(0,
             Ui.Button(L.T("Abbrechen", "Cancel"), () => { DialogResult = false; }),
-            Ui.Button(L.T("Hinzufügen", "Add"), Accept, SymbolRegular.Add24, primary: true));
+            Ui.Button(L.T("Hinzufügen", "Add"), Accept, Icons.Add, primary: true));
         buttons.HorizontalAlignment = HorizontalAlignment.Right;
         buttons.Margin = new Thickness(0, 12, 0, 0);
 
@@ -54,19 +53,13 @@ internal sealed class ProcessPickerWindow : FluentWindow
         body.Children.Add(buttons);
         body.Children.Add(list_);
 
-        var root = new DockPanel();
-        var titleBar = new TitleBar { Title = Title, ShowMaximize = false, ShowMinimize = false };
-        DockPanel.SetDock(titleBar, Dock.Top);
-        root.Children.Add(titleBar);
-        root.Children.Add(body);
-        Content = root;
+        Content = body;
 
         search_.TextChanged += (_, _) => Filter();
         windowsOnly_.Checked += (_, _) => Filter();
         windowsOnly_.Unchecked += (_, _) => Filter();
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) DialogResult = false; };
         Loaded += (_, _) => { Load(); search_.Focus(); };
-        Theme.Attach(this);
     }
 
     private void Accept()
@@ -112,7 +105,7 @@ internal sealed class ProcessPickerWindow : FluentWindow
             var img = ExeIcons.For(e.Path);
             UIElement icon = img != null
                 ? new System.Windows.Controls.Image { Source = img, Width = 28, Height = 28 }
-                : new SymbolIcon { Symbol = SymbolRegular.Apps24, FontSize = 24, Opacity = 0.5 };
+                : Dim(Ui.Icon(Icons.Apps, 24));
             var text = new StackPanel { Margin = new Thickness(12, 0, 0, 0) };
             text.Children.Add(Ui.Body(e.Description, wrap: false));
             text.Children.Add(Ui.Caption(e.WindowTitle.Length > 0 ? $"{e.ExeName}  ·  {e.WindowTitle}" : e.ExeName, false));
@@ -122,15 +115,15 @@ internal sealed class ProcessPickerWindow : FluentWindow
 }
 
 /// <summary>Finds out how a display can be turned off: tries each method for a few seconds and asks.</summary>
-internal sealed class OffWizardWindow : FluentWindow
+internal sealed class OffWizardWindow : Window
 {
     private readonly DisplayInfo display_;
     private readonly List<string> methods_;
     private int step_ = -1;
-    private readonly WpfUi.TextBlock heading_ = new() { FontTypography = FontTypography.Subtitle, TextWrapping = TextWrapping.Wrap };
-    private readonly WpfUi.TextBlock text_ = new() { FontTypography = FontTypography.Body, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
+    private readonly TextBlock heading_ = new() { FontSize = 20, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock text_ = new() { FontSize = 14, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
     private readonly StackPanel buttons_ = new() { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 20, 0, 0) };
-    private readonly ProgressRing ring_ = new() { IsIndeterminate = true, Width = 32, Height = 32, Visibility = Visibility.Collapsed, Margin = new Thickness(0, 16, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
+    private readonly ProgressBar ring_ = new() { IsIndeterminate = true, Height = 4, Visibility = Visibility.Collapsed, Margin = new Thickness(0, 16, 0, 0) };
 
     /// <summary>The method that worked (null = none / cancelled).</summary>
     public string? Method { get; private set; }
@@ -147,25 +140,20 @@ internal sealed class OffWizardWindow : FluentWindow
         SizeToContent = SizeToContent.Height;
         ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        ExtendsContentIntoTitleBar = true;
-        WindowBackdropType = WindowBackdropType.Mica;
         ShowInTaskbar = false;
+        Icon = Ui.AppIcon;
 
         var body = new StackPanel { Margin = new Thickness(24, 8, 24, 24) };
         body.Children.Add(heading_);
         body.Children.Add(text_);
         body.Children.Add(ring_);
         body.Children.Add(buttons_);
-        var root = new StackPanel();
-        root.Children.Add(new TitleBar { Title = Title, ShowMaximize = false, ShowMinimize = false });
-        root.Children.Add(body);
-        Content = root;
+        Content = body;
 
         Intro();
-        Theme.Attach(this);
     }
 
-    private void Buttons(params WpfUi.Button[] buttons)
+    private void Buttons(params Button[] buttons)
     {
         buttons_.Children.Clear();
         foreach (var b in buttons) buttons_.Children.Add(b);
@@ -177,7 +165,7 @@ internal sealed class OffWizardWindow : FluentWindow
         text_.Text = L.T("Monitore reagieren unterschiedlich. Der Assistent probiert nacheinander bis zu {0} Methoden, jeweils für 5 Sekunden. Schau dabei auf den Bildschirm und sag mir danach, ob er aus war.",
                          "Monitors react differently. The wizard tries up to {0} methods one after the other, 5 seconds each. Watch the display and tell me afterwards whether it was off.", methods_.Count);
         Buttons(Ui.Button(L.T("Abbrechen", "Cancel"), () => DialogResult = false),
-                Ui.Button(L.T("Los geht's", "Start"), Next, SymbolRegular.Play24, primary: true));
+                Ui.Button(L.T("Los geht's", "Start"), Next, Icons.Play, primary: true));
     }
 
     private async void Next()
@@ -221,8 +209,8 @@ internal sealed class OffWizardWindow : FluentWindow
         ring_.Visibility = Visibility.Collapsed;
         heading_.Text = L.T("War {0} gerade aus?", "Was {0} off just now?", display_.Name);
         text_.Text = OffMethod.Text(method);
-        Buttons(Ui.Button(L.T("Nochmal", "Again"), () => { step_--; Next(); }, SymbolRegular.ArrowRepeatAll24),
+        Buttons(Ui.Button(L.T("Nochmal", "Again"), () => { step_--; Next(); }, Icons.Repeat),
                 Ui.Button(L.T("Nein", "No"), Next),
-                Ui.Button(L.T("Ja, war aus", "Yes, it was off"), () => { Method = method; DialogResult = true; }, SymbolRegular.Checkmark24, primary: true));
+                Ui.Button(L.T("Ja, war aus", "Yes, it was off"), () => { Method = method; DialogResult = true; }, Icons.Check, primary: true));
     }
 }

@@ -46,7 +46,7 @@ ColorNavigator can switch modes – but only when *you* click. There is no "when
 ## What you need
 
 - Windows 10 or 11 (64-bit)
-- the free [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) (x64) – if it is missing, EizoSwitcher offers the download link on first start. That's why the whole download is only about 3 MB.
+- the free [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) (x64) – if it is missing, EizoSwitcher offers the download link on first start. That's why the whole setup is only about 2 MB.
 - **For color modes:** an EIZO monitor with its **USB upstream cable** connected to the PC – the same cable ColorNavigator uses
 - **For "turn off":** nothing special. If a monitor ignores DDC/CI power commands (like the EIZOs I tested), EizoSwitcher disconnects it from the desktop instead, so it goes to standby by itself. The primary display is blanked black instead.
 
@@ -54,14 +54,19 @@ Built and tested with a **CG279X** and a **CS2731** (USB) plus a **FlexScan S172
 
 ## Installation
 
-1. Download **`EizoSwitcher-win-x64.zip`** from the [latest release](https://github.com/s1nn3r/EizoSwitcher/releases/latest).
-2. Extract it into a folder you can write to, e.g. `%LOCALAPPDATA%\Programs\EizoSwitcher`.
-   Please *not* under `C:\Program Files` – otherwise the automatic updates can't replace the files.
-3. Start **`EizoSwitcher.exe`**. The icon appears in the tray, EizoSwitcher reads all your displays, takes over the currently selected modes as your defaults and opens the settings.
+1. Download **`EizoSwitcher-Setup.exe`** from the [latest release](https://github.com/s1nn3r/EizoSwitcher/releases/latest) and run it.
+   It installs for your user only (no admin rights needed), adds a start menu entry and shows up under *Settings → Apps* for uninstalling. If the .NET 10 Desktop Runtime is missing, the setup offers the download page.
+2. Start **EizoSwitcher**. The icon appears in the tray, EizoSwitcher reads all your displays, takes over the currently selected modes as your defaults and opens the settings.
 
 > If Windows SmartScreen complains about an unknown app: *More info → Run anyway*.
 
-EizoSwitcher starts with Windows from now on (you can turn that off under *General*).
+EizoSwitcher starts with Windows from now on (you can turn that off under *General*) and updates itself: it downloads the new setup and installs it silently.
+
+<details>
+<summary>Portable version without installer</summary>
+
+Download `EizoSwitcher-win-x64.zip`, extract it into a folder you can write to (not `C:\Program Files`) and start `EizoSwitcher.exe`. Updates then replace the files in that folder.
+</details>
 
 ## Setting it up
 
@@ -167,11 +172,11 @@ eizoswitch list --json                 machine-readable output
 
 ## Building from source
 
-You need the [.NET 10 SDK](https://dotnet.microsoft.com/download).
+You need the [.NET 10 SDK](https://dotnet.microsoft.com/download) and, for the installer, [Inno Setup 6](https://jrsoftware.org/isinfo.php) (`winget install JRSoftware.InnoSetup`).
 
 ```
 dotnet build
-.\tools\release.ps1 -Version 1.2.3                                   # package to artifacts\1.2.3
+.\tools\release.ps1 -Version 1.2.3                                   # setup + zip in artifacts\1.2.3
 .\tools\release.ps1 -Version 1.2.3 -CertThumbprint <sha1>            # + Authenticode signing
 .\tools\release.ps1 -Version 1.2.3 -CertThumbprint <sha1> -Publish   # + GitHub release
 ```
@@ -179,7 +184,8 @@ dotnet build
 | Project | |
 |---|---|
 | `src/EizoSwitcher.Core` | USB HID protocol, monitor access, translations |
-| `src/EizoSwitcher` | tray app (WPF with [WPF-UI](https://github.com/lepoco/wpfui)) |
+| `src/EizoSwitcher` | tray app (WPF with the built-in Fluent theme – no UI library) |
+| `installer/` | Inno Setup script for `EizoSwitcher-Setup.exe` |
 | `src/EizoSwitcher.Cli` | `eizoswitch` command line tool |
 | `tools/` | release script, icon renderer, translation helper |
 

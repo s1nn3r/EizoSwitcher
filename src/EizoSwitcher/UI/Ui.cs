@@ -1,9 +1,8 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Wpf.Ui.Controls;
-using WpfUi = Wpf.Ui.Controls;
 
 namespace EizoSwitcher.UI;
 
@@ -13,7 +12,19 @@ internal sealed record Opt(string Token, string Label)
     public override string ToString() => Label;
 }
 
-/// <summary>Factory helpers so the code-built WPF-UI pages stay readable.</summary>
+/// <summary>Glyphs of the "Segoe Fluent Icons" font (Windows 11; "Segoe MDL2 Assets" on Windows 10 has the same code points).</summary>
+internal static class Icons
+{
+    public const string Apps = "", Game = "", Home = "", Display = "", Settings = "";
+    public const string Add = "", Folder = "", Delete = "", Up = "", Down = "";
+    public const string Refresh = "", Color = "", Power = "", Wand = "", Moon = "";
+    public const string Document = "", Globe = "", Theme = "", Bell = "", Timer = "";
+    public const string Download = "", Sync = "", Info = "", Heart = "", FullScreen = "";
+    public const string Window = "", Library = "", Blocked = "", Search = "", Play = "";
+    public const string Check = "", Repeat = "", Pause = "", Close = "", Reset = "";
+}
+
+/// <summary>Factory helpers on top of WPF's built-in Fluent theme (no extra UI library).</summary>
 internal static class Ui
 {
     /// <summary>Screenshot mode: hides real serial numbers.</summary>
@@ -37,53 +48,95 @@ internal static class Ui
         return new System.Drawing.Icon(s, size);
     }
 
+    private static readonly FontFamily IconFont = new("Segoe Fluent Icons, Segoe MDL2 Assets");
+
+    public static TextBlock Icon(string glyph, double size = 16) =>
+        new() { Text = glyph, FontFamily = IconFont, FontSize = size, VerticalAlignment = VerticalAlignment.Center };
+
+    private static void Secondary(FrameworkElement e) => e.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
+
     // ------------------------------------------------------------ text
 
-    public static WpfUi.TextBlock Title(string text) =>
-        new() { Text = text, FontTypography = FontTypography.Title, Margin = new Thickness(0, 0, 0, 4) };
+    public static TextBlock Title(string text) =>
+        new() { Text = text, FontSize = 28, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 6) };
 
-    public static WpfUi.TextBlock Section(string text) =>
-        new() { Text = text, FontTypography = FontTypography.BodyStrong, Margin = new Thickness(2, 18, 0, 6) };
+    public static TextBlock Section(string text) =>
+        new() { Text = text, FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(2, 20, 0, 8) };
 
-    public static WpfUi.TextBlock Body(string text, bool secondary = false, bool wrap = true)
+    public static TextBlock Body(string text, bool secondary = false, bool wrap = true)
     {
-        var t = new WpfUi.TextBlock { Text = text, FontTypography = FontTypography.Body, TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis };
-        if (secondary) t.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
+        var t = new TextBlock { Text = text, FontSize = 14, TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis };
+        if (secondary) Secondary(t);
         return t;
     }
 
-    public static WpfUi.TextBlock Caption(string text, bool wrap = true)
+    public static TextBlock Strong(string text) => new() { Text = text, FontSize = 14, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis };
+
+    public static TextBlock Caption(string text, bool wrap = true)
     {
-        var t = new WpfUi.TextBlock { Text = text, FontTypography = FontTypography.Caption, TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis };
-        t.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
+        var t = new TextBlock { Text = text, FontSize = 12, TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis };
+        Secondary(t);
         return t;
     }
 
     // ------------------------------------------------------------ controls
 
-    public static WpfUi.Button Button(string text, Action click, SymbolRegular? icon = null, bool primary = false)
+    public static Button Button(string text, Action click, string? icon = null, bool primary = false)
     {
-        var b = new WpfUi.Button
-        {
-            Content = text,
-            Appearance = primary ? ControlAppearance.Primary : ControlAppearance.Secondary,
-            Margin = new Thickness(0, 0, 8, 0),
-        };
-        if (icon != null) b.Icon = new SymbolIcon { Symbol = icon.Value };
+        var content = icon == null ? (object)text : Row(8, Icon(icon, 14), new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center });
+        var b = new Button { Content = content, Margin = new Thickness(0, 0, 8, 0), Padding = new Thickness(12, 6, 12, 6) };
+        if (primary) b.SetResourceReference(FrameworkElement.StyleProperty, "AccentButtonStyle");
         b.Click += (_, _) => click();
         return b;
     }
 
-    public static WpfUi.Button IconButton(SymbolRegular icon, string tip, Action click)
+    public static Button IconButton(string glyph, string tip, Action click)
     {
-        var b = new WpfUi.Button { Icon = new SymbolIcon { Symbol = icon }, Appearance = ControlAppearance.Transparent, Padding = new Thickness(6), ToolTip = tip, BorderThickness = new Thickness(0) };
+        var b = new Button { Content = Icon(glyph, 14), ToolTip = tip, Padding = new Thickness(8), Margin = new Thickness(0, 0, 2, 0), Background = Brushes.Transparent, BorderThickness = new Thickness(0) };
         b.Click += (_, _) => click();
         return b;
     }
 
-    public static ToggleSwitch Toggle(bool value, Action changed)
+    private static Style? toggleStyle_;
+
+    /// <summary>A Windows 11 style on/off switch (a CheckBox with its own template).</summary>
+    public static CheckBox Toggle(bool value, Action changed)
     {
-        var t = new ToggleSwitch { IsChecked = value };
+        toggleStyle_ ??= (Style)XamlReader.Parse("""
+            <Style xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" TargetType="CheckBox">
+              <Setter Property="Cursor" Value="Hand"/>
+              <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+              <Setter Property="Template">
+                <Setter.Value>
+                  <ControlTemplate TargetType="CheckBox">
+                    <Grid Background="Transparent" Width="40" Height="20" VerticalAlignment="Center">
+                      <Border x:Name="Track" CornerRadius="10" BorderThickness="1"
+                              BorderBrush="{DynamicResource ControlStrongStrokeColorDefaultBrush}"
+                              Background="{DynamicResource ControlAltFillColorSecondaryBrush}"/>
+                      <Ellipse x:Name="Knob" Width="12" Height="12" HorizontalAlignment="Left" Margin="4,0,0,0"
+                               Fill="{DynamicResource TextFillColorSecondaryBrush}"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                      <Trigger Property="IsChecked" Value="True">
+                        <Setter TargetName="Track" Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}"/>
+                        <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}"/>
+                        <Setter TargetName="Knob" Property="Fill" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}"/>
+                        <Setter TargetName="Knob" Property="Margin" Value="24,0,0,0"/>
+                      </Trigger>
+                      <Trigger Property="IsMouseOver" Value="True">
+                        <Setter TargetName="Knob" Property="Width" Value="14"/>
+                        <Setter TargetName="Knob" Property="Height" Value="14"/>
+                      </Trigger>
+                      <Trigger Property="IsEnabled" Value="False">
+                        <Setter Property="Opacity" Value="0.5"/>
+                      </Trigger>
+                    </ControlTemplate.Triggers>
+                  </ControlTemplate>
+                </Setter.Value>
+              </Setter>
+            </Style>
+            """);
+        var t = new CheckBox { IsChecked = value, Style = toggleStyle_ };
         t.Checked += (_, _) => changed();
         t.Unchecked += (_, _) => changed();
         return t;
@@ -94,7 +147,7 @@ internal static class Ui
         var list = options.ToList();
         if (selected != null && list.All(o => !o.Token.Equals(selected, StringComparison.OrdinalIgnoreCase)))
             list.Add(new Opt(selected, selected + "  ⚠"));
-        var box = new ComboBox { ItemsSource = list, Width = width, MinWidth = 0 };
+        var box = new ComboBox { ItemsSource = list, Width = width, MinWidth = 0, VerticalAlignment = VerticalAlignment.Center };
         box.SelectedItem = list.FirstOrDefault(o => o.Token.Equals(selected ?? "", StringComparison.OrdinalIgnoreCase)) ?? list[0];
         if (changed != null) box.SelectionChanged += (_, _) => changed();
         return box;
@@ -102,19 +155,59 @@ internal static class Ui
 
     public static string Token(ComboBox box) => (box.SelectedItem as Opt)?.Token ?? "";
 
-    /// <summary>A row like in the Windows 11 settings: icon, title, description – control on the right.</summary>
-    public static CardControl Setting(SymbolRegular icon, string title, string? description, object? content)
+    /// <summary>Card surface like in the Windows 11 settings.</summary>
+    public static Border Card(UIElement content, Thickness? padding = null)
     {
-        var header = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        header.Children.Add(Body(title));
-        if (!string.IsNullOrEmpty(description)) header.Children.Add(Caption(description));
-        return new CardControl
+        var b = new Border
         {
-            Icon = new SymbolIcon { Symbol = icon },
-            Header = header,
-            Content = content,
-            Margin = new Thickness(0, 0, 0, 4),
+            Child = content, CornerRadius = new CornerRadius(6), BorderThickness = new Thickness(1),
+            Padding = padding ?? new Thickness(16, 12, 16, 12), Margin = new Thickness(0, 0, 0, 4),
         };
+        b.SetResourceReference(Border.BackgroundProperty, "CardBackgroundFillColorDefaultBrush");
+        b.SetResourceReference(Border.BorderBrushProperty, "CardStrokeColorDefaultBrush");
+        return b;
+    }
+
+    /// <summary>A row like in the Windows 11 settings: icon, title, description – control on the right.</summary>
+    public static Border Setting(string icon, string title, string? description, object? content)
+    {
+        var grid = new Grid { MinHeight = 44 };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.Children.Add(Icon(icon, 18));
+        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 16, 0) };
+        text.Children.Add(Body(title));
+        if (!string.IsNullOrEmpty(description)) text.Children.Add(Caption(description));
+        Grid.SetColumn(text, 1);
+        grid.Children.Add(text);
+        if (content is UIElement e)
+        {
+            if (e is FrameworkElement fe) fe.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(e, 2);
+            grid.Children.Add(e);
+        }
+        else if (content is string s)
+        {
+            var c = Caption(s, false);
+            Grid.SetColumn(c, 2);
+            grid.Children.Add(c);
+        }
+        return Card(grid);
+    }
+
+    /// <summary>Collapsible card (Fluent Expander inside a card).</summary>
+    public static Border Expander(string icon, object header, UIElement content, bool expanded = false)
+    {
+        var head = header is string s ? (UIElement)Body(s) : (UIElement)header;
+        var exp = new System.Windows.Controls.Expander
+        {
+            Header = Row(14, Icon(icon, 18), head),
+            Content = new Border { Child = content, Padding = new Thickness(40, 10, 0, 4) },
+            IsExpanded = expanded,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        return Card(exp, new Thickness(12, 8, 12, 8));
     }
 
     public static StackPanel Row(double spacing, params UIElement[] children)
@@ -131,7 +224,7 @@ internal static class Ui
     /// <summary>Scrollable page with a readable maximum width.</summary>
     public static ScrollViewer Page(params UIElement[] children)
     {
-        var col = new StackPanel { Margin = new Thickness(32, 20, 32, 32), MaxWidth = 1000, HorizontalAlignment = HorizontalAlignment.Stretch };
+        var col = new StackPanel { Margin = new Thickness(32, 24, 32, 32), MaxWidth = 1000, HorizontalAlignment = HorizontalAlignment.Stretch };
         foreach (var c in children) col.Children.Add(c);
         return new ScrollViewer { Content = col, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
     }

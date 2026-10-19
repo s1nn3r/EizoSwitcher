@@ -17,6 +17,7 @@
     <Copyright>© 2026 Marc Breuer</Copyright>
     <Description>Switches EIZO color modes and blanks displays depending on the program in the foreground.</Description>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -30,10 +31,6 @@
   <ItemGroup>
     <Resource Include="Assets\EizoSwitcher.ico" />
     <EmbeddedResource Include="Assets\EizoSwitcher.ico" LogicalName="EizoSwitcher.ico" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="WPF-UI" Version="4.3.0" />
   </ItemGroup>
 
   <ItemGroup>

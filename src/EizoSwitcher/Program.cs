@@ -1,7 +1,6 @@
 using System.Windows;
 using EizoSwitcher.Services;
 using EizoSwitcher.UI;
-using Wpf.Ui.Markup;
 
 namespace EizoSwitcher;
 
@@ -36,8 +35,6 @@ internal static class Program
         L.Set(settings.Language);
 
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
-        app.Resources.MergedDictionaries.Add(new ThemesDictionary());
-        app.Resources.MergedDictionaries.Add(new ControlsDictionary());
         Theme.Apply(args.Contains("--dark") ? "dark" : args.Contains("--light") ? "light" : settings.Theme);
 
         if (shots >= 0)

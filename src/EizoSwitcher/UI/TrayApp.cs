@@ -6,7 +6,6 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
 using EizoSwitcher.Services;
-using Wpf.Ui.Controls;
 using Forms = System.Windows.Forms;
 using MenuItem = System.Windows.Controls.MenuItem;
 
@@ -93,10 +92,10 @@ internal sealed class TrayApp : IBlackout
     private void BuildMenu()
     {
         menu_.Items.Clear();
-        MenuItem Item(string header, Action? click = null, SymbolRegular? icon = null, bool enabled = true)
+        MenuItem Item(string header, Action? click = null, string? icon = null, bool enabled = true)
         {
             var mi = new MenuItem { Header = header, IsEnabled = enabled };
-            if (icon != null) mi.Icon = new SymbolIcon { Symbol = icon.Value };
+            if (icon != null) mi.Icon = UI.Ui.Icon(icon);
             if (click != null) mi.Click += (_, _) => click();
             return mi;
         }
@@ -106,7 +105,7 @@ internal sealed class TrayApp : IBlackout
         foreach (var d in displays_.Displays)
         {
             string reason = engine_.Reasons.GetValueOrDefault(d.Id) ?? "";
-            var item = Item($"{d.Name}:  {State(d)}" + (reason.Length > 0 ? $"   ({reason})" : ""), icon: SymbolRegular.Desktop24);
+            var item = Item($"{d.Name}:  {State(d)}" + (reason.Length > 0 ? $"   ({reason})" : ""), icon: Icons.Display);
             if (d.Eizo != null)
             {
                 for (int i = 0; i < d.Eizo.Modes.Count; i++)
@@ -119,29 +118,29 @@ internal sealed class TrayApp : IBlackout
                 }
                 item.Items.Add(new Separator());
             }
-            item.Items.Add(Item(L.T("Schwarz schalten (Klick zum Aufheben)", "Blank (click to undo)"), () => Show(d), SymbolRegular.WeatherMoon24));
+            item.Items.Add(Item(L.T("Schwarz schalten (Klick zum Aufheben)", "Blank (click to undo)"), () => Show(d), Icons.Moon));
             menu_.Items.Add(item);
         }
         if (displays_.Displays.Count == 0)
             menu_.Items.Add(Item(L.T("Bildschirme werden gesucht …", "Looking for displays …"), enabled: false));
         if (engine_.ActiveGame != null)
-            menu_.Items.Add(Item(L.T("Spiel erkannt: ", "Game detected: ") + engine_.ActiveGame, enabled: false, icon: SymbolRegular.Games24));
+            menu_.Items.Add(Item(L.T("Spiel erkannt: ", "Game detected: ") + engine_.ActiveGame, enabled: false, icon: Icons.Game));
         else if (engine_.ActiveProgram != null)
-            menu_.Items.Add(Item(L.T("Im Vordergrund: ", "In the foreground: ") + engine_.ActiveProgram, enabled: false, icon: SymbolRegular.Apps24));
+            menu_.Items.Add(Item(L.T("Im Vordergrund: ", "In the foreground: ") + engine_.ActiveProgram, enabled: false, icon: Icons.Apps));
 
         menu_.Items.Add(new Separator());
-        var pause = Item(L.T("Automatik pausieren", "Pause automatic switching"), TogglePause, SymbolRegular.Pause24);
+        var pause = Item(L.T("Automatik pausieren", "Pause automatic switching"), TogglePause, Icons.Pause);
         pause.IsCheckable = true;
         pause.IsChecked = settings_.Paused;
         menu_.Items.Add(pause);
-        var open = Item(L.T("Einstellungen …", "Settings …"), ShowSettings, SymbolRegular.Settings24);
+        var open = Item(L.T("Einstellungen …", "Settings …"), ShowSettings, Icons.Settings);
         open.FontWeight = FontWeights.SemiBold;
         menu_.Items.Add(open);
         menu_.Items.Add(pendingUpdate_ != null
-            ? Item(L.T("Update auf {0} installieren", "Install update {0}", pendingUpdate_.Version), async () => await InstallUpdateAsync(pendingUpdate_), SymbolRegular.ArrowDownload24)
-            : Item(L.T("Nach Updates suchen", "Check for updates"), async () => await CheckForUpdatesAsync(true), SymbolRegular.ArrowSync24));
+            ? Item(L.T("Update auf {0} installieren", "Install update {0}", pendingUpdate_.Version), async () => await InstallUpdateAsync(pendingUpdate_), Icons.Download)
+            : Item(L.T("Nach Updates suchen", "Check for updates"), async () => await CheckForUpdatesAsync(true), Icons.Refresh));
         menu_.Items.Add(new Separator());
-        menu_.Items.Add(Item(L.T("Beenden", "Exit"), ExitApp, SymbolRegular.Dismiss24));
+        menu_.Items.Add(Item(L.T("Beenden", "Exit"), ExitApp, Icons.Close));
     }
 
     private string State(DisplayInfo d) =>

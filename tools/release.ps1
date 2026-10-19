@@ -8,7 +8,8 @@
   .\tools\release.ps1 -Version 1.0.0 -CertThumbprint 0123... -Publish  # + GitHub release (needs gh)
 
 .NOTES
-  Output: artifacts\<version>\EizoSwitcher-win-x64.zip (+ .sha256), the asset names the auto-updater expects.
+  Output: artifacts\<version>\EizoSwitcher-Setup.exe and EizoSwitcher-win-x64.zip (each + .sha256) – the asset names the auto-updater expects.
+  Needs Inno Setup 6 (winget install JRSoftware.InnoSetup). Release notes: artifacts\<version>\notes.md (optional).
   Signing uses signtool from the Windows SDK and a certificate from the current user's store.
 #>
 param(
@@ -41,26 +42,48 @@ if ($LASTEXITCODE) { throw 'publish cli failed' }
 Copy-Item "$out\app\EizoSwitcher.exe", "$out\cli\eizoswitch.exe" $pkg
 Copy-Item "$root\LICENSE" $pkg
 
+$signtool = $null
 if ($CertThumbprint) {
-    Write-Host "== Signing" -ForegroundColor Cyan
     $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue |
         Sort-Object FullName -Descending | Select-Object -First 1
     if (-not $signtool) { throw 'signtool.exe not found (install the Windows SDK)' }
+}
+function Sign([string[]]$files) {
+    if (-not $signtool) { return }
+    Write-Host "== Signing $($files | Split-Path -Leaf)" -ForegroundColor Cyan
     & $signtool.FullName sign /sha1 $CertThumbprint /fd sha256 /tr $TimestampUrl /td sha256 `
-        /d EizoSwitcher /du "https://github.com/s1nn3r/EizoSwitcher" "$pkg\EizoSwitcher.exe" "$pkg\eizoswitch.exe"
+        /d EizoSwitcher /du "https://github.com/s1nn3r/EizoSwitcher" @files
     if ($LASTEXITCODE) { throw 'signing failed' }
 }
+function Hash([string]$file) {
+    $h = (Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant()
+    "$h  $(Split-Path $file -Leaf)" | Set-Content "$file.sha256" -NoNewline -Encoding ascii
+}
 
+Sign "$pkg\EizoSwitcher.exe", "$pkg\eizoswitch.exe"
+
+# portable zip (also what versions <= 0.2 update from)
 $zip = Join-Path $out 'EizoSwitcher-win-x64.zip'
 Compress-Archive "$pkg\*" $zip -CompressionLevel Optimal
-$hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
-"$hash  EizoSwitcher-win-x64.zip" | Set-Content "$zip.sha256" -NoNewline -Encoding ascii
+Hash $zip
 
-Get-ChildItem $pkg, $zip | Format-Table Name, @{ n = 'MB'; e = { [math]::Round($_.Length / 1MB, 1) } } -AutoSize
-Write-Host "SHA-256: $hash"
+# installer (Inno Setup 6)
+Write-Host "== Installer" -ForegroundColor Cyan
+$iscc = @("$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe", "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe") |
+    Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $iscc) { throw 'Inno Setup 6 not found (winget install JRSoftware.InnoSetup)' }
+& $iscc /Q "/DVersion=$Version" "/DSourceDir=$pkg" "/DOutputDir=$out" "$root\installer\EizoSwitcher.iss"
+if ($LASTEXITCODE) { throw 'installer build failed' }
+$setup = Join-Path $out 'EizoSwitcher-Setup.exe'
+Sign $setup
+Hash $setup
+
+Get-ChildItem $pkg, $zip, $setup | Format-Table Name, @{ n = 'MB'; e = { [math]::Round($_.Length / 1MB, 2) } } -AutoSize
 
 if ($Publish) {
     Write-Host "== GitHub release v$Version" -ForegroundColor Cyan
-    gh release create "v$Version" $zip "$zip.sha256" --title "EizoSwitcher $Version" --generate-notes
+    $notes = Join-Path $out 'notes.md'
+    $noteArgs = if (Test-Path $notes) { @('--notes-file', $notes) } else { @('--generate-notes') }
+    gh release create "v$Version" $setup "$setup.sha256" $zip "$zip.sha256" --title "EizoSwitcher $Version" @noteArgs
     if ($LASTEXITCODE) { throw 'gh release create failed' }
 }

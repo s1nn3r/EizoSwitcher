@@ -5,13 +5,11 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using EizoSwitcher.Services;
 using Microsoft.Win32;
-using Wpf.Ui.Controls;
-using WpfUi = Wpf.Ui.Controls;
 
 namespace EizoSwitcher.UI;
 
 /// <summary>Settings in the Windows 11 style. Every change is applied right away (no save button).</summary>
-internal sealed class SettingsWindow : FluentWindow
+internal sealed class SettingsWindow : Window
 {
     /// <summary>One display column: live data if connected, otherwise what we remembered.</summary>
     private sealed record Col(string Id, string Name, bool Connected, bool IsEizo, bool CanTurnOff, IReadOnlyList<string> Modes, string? Current);
@@ -37,9 +35,9 @@ internal sealed class SettingsWindow : FluentWindow
     private string colsSignature_ = "";
     private bool building_;
 
-    private readonly ListBox nav_ = new();
+    private readonly ListBox nav_ = new() { Background = System.Windows.Media.Brushes.Transparent, BorderThickness = new Thickness(0) };
     private readonly ContentControl page_ = new();
-    private readonly List<(string Title, SymbolRegular Icon, Func<UIElement> Build)> pages_ = [];
+    private readonly List<(string Title, string Icon, Func<UIElement> Build)> pages_ = [];
 
     private readonly List<RuleRow> rows_ = [];
     private readonly StackPanel ruleTable_ = new();
@@ -64,8 +62,6 @@ internal sealed class SettingsWindow : FluentWindow
         MinWidth = 900;
         MinHeight = 560;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        ExtendsContentIntoTitleBar = true;
-        WindowBackdropType = WindowBackdropType.Mica;
         Icon = Ui.AppIcon;
 
         saveTimer_.Tick += (_, _) => { saveTimer_.Stop(); Collect(); Saved?.Invoke(work_.Clone()); };
@@ -74,7 +70,6 @@ internal sealed class SettingsWindow : FluentWindow
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) Close(); };
 
         Rebuild();
-        Theme.Attach(this);
     }
 
     /// <summary>Marks the settings as changed; they are applied shortly after the last change.</summary>
@@ -95,27 +90,27 @@ internal sealed class SettingsWindow : FluentWindow
         colsSignature_ = Signature(cols_);
 
         pages_.Clear();
-        pages_.Add((L.T("Programme", "Programs"), SymbolRegular.Apps24, ProgramsPage));
-        pages_.Add((L.T("Spiele", "Games"), SymbolRegular.Games24, GamesPage));
-        pages_.Add((L.T("Standard", "Defaults"), SymbolRegular.Home24, DefaultsPage));
-        pages_.Add((L.T("Bildschirme", "Displays"), SymbolRegular.Desktop24, DisplaysPage));
-        pages_.Add((L.T("Allgemein", "General"), SymbolRegular.Settings24, GeneralPage));
+        pages_.Add((L.T("Programme", "Programs"), Icons.Apps, ProgramsPage));
+        pages_.Add((L.T("Spiele", "Games"), Icons.Game, GamesPage));
+        pages_.Add((L.T("Standard", "Defaults"), Icons.Home, DefaultsPage));
+        pages_.Add((L.T("Bildschirme", "Displays"), Icons.Display, DisplaysPage));
+        pages_.Add((L.T("Allgemein", "General"), Icons.Settings, GeneralPage));
         pageCache_.Clear();
 
         nav_.Items.Clear();
         foreach (var (title, icon, _) in pages_)
         {
-            var item = Ui.Row(12, new SymbolIcon { Symbol = icon, FontSize = 18 }, Ui.Body(title, wrap: false));
+            var item = Ui.Row(12, Ui.Icon(icon, 18), Ui.Body(title, wrap: false));
             item.Margin = new Thickness(4, 6, 4, 6);
             nav_.Items.Add(new ListBoxItem { Content = item });
         }
 
-        var titleBar = new TitleBar { Title = "EizoSwitcher", Icon = new ImageIcon { Source = Ui.AppIcon } };
         var navPanel = new DockPanel { Width = 240, Margin = new Thickness(8, 8, 0, 8) };
         var version = Ui.Caption($"EizoSwitcher {Updater.Current}");
         version.Margin = new Thickness(14, 0, 0, 6);
         DockPanel.SetDock(version, Dock.Bottom);
         navPanel.Children.Add(version);
+        if (nav_.Parent is Panel oldNav) oldNav.Children.Remove(nav_);
         navPanel.Children.Add(nav_);
 
         var body = new Grid();
@@ -127,12 +122,7 @@ internal sealed class SettingsWindow : FluentWindow
         Grid.SetColumn(page_, 1);
         body.Children.Add(page_);
 
-        var root = new Grid();
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        root.Children.Add(titleBar);
-        Grid.SetRow(body, 1);
-        root.Children.Add(body);
+        var root = body;
         Root = root;
         Content = null;
         Content = root;
@@ -206,7 +196,7 @@ internal sealed class SettingsWindow : FluentWindow
         for (int i = 0; i < cols_.Count; i++)
         {
             var head = new StackPanel { Opacity = cols_[i].Connected ? 1 : 0.5 };
-            head.Children.Add(new WpfUi.TextBlock { Text = cols_[i].Name, FontTypography = FontTypography.BodyStrong });
+            head.Children.Add(Ui.Strong(cols_[i].Name));
             head.Children.Add(Ui.Caption(ColSubtitle(cols_[i]), false));
             H(4 + i, head);
         }
@@ -219,7 +209,7 @@ internal sealed class SettingsWindow : FluentWindow
         var table = new StackPanel { Margin = new Thickness(0, 0, 0, 16) };
         table.Children.Add(header);
         table.Children.Add(ruleTable_);
-        var card = new Card { Content = new ScrollViewer { Content = table, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled }, Padding = new Thickness(8, 12, 8, 8) };
+        var card = Ui.Card(new ScrollViewer { Content = table, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled }, new Thickness(8, 12, 8, 8));
 
         var intro = Ui.Body(L.T("Sobald eines dieser Programme im Vordergrund ist, werden die Bildschirme wie angegeben umgeschaltet. Wechselst du zu einem anderen Programm oder wird es beendet, gilt wieder der Standard. " +
                                 "„—“ lässt einen Bildschirm unverändert. Graue Zeilen verweisen auf einen Farbmodus oder Bildschirm, den es nicht (mehr) gibt.",
@@ -228,14 +218,16 @@ internal sealed class SettingsWindow : FluentWindow
         intro.Margin = new Thickness(0, 0, 0, 14);
 
         var buttons = Ui.Row(0,
-            Ui.Button(L.T("Laufendes Programm …", "Running program …"), AddFromProcesses, SymbolRegular.Add24, primary: true),
-            Ui.Button(L.T("Programmdatei auswählen …", "Choose executable …"), AddFromFile, SymbolRegular.FolderOpen24));
+            Ui.Button(L.T("Laufendes Programm …", "Running program …"), AddFromProcesses, Icons.Add, primary: true),
+            Ui.Button(L.T("Programmdatei auswählen …", "Choose executable …"), AddFromFile, Icons.Folder));
         buttons.Margin = new Thickness(0, 0, 0, 14);
 
         var page = Ui.Page(Ui.Title(L.T("Programme", "Programs")), intro, buttons, card);
         ((StackPanel)page.Content).MaxWidth = double.PositiveInfinity;
         return page;
     }
+
+    private static UIElement Dim(FrameworkElement e) { e.Opacity = 0.5; return e; }
 
     private void DefineColumns(Grid g)
     {
@@ -256,7 +248,7 @@ internal sealed class SettingsWindow : FluentWindow
         var img = ExeIcons.For(rule.ExePath);
         Put(1, img != null
             ? new System.Windows.Controls.Image { Source = img, Width = 22, Height = 22, VerticalAlignment = VerticalAlignment.Center }
-            : new SymbolIcon { Symbol = SymbolRegular.Apps24, FontSize = 20, Opacity = 0.5, VerticalAlignment = VerticalAlignment.Center });
+            : Dim(Ui.Icon(Icons.Apps, 20)));
 
         var name = new System.Windows.Controls.TextBox { Text = rule.Name, VerticalAlignment = VerticalAlignment.Center };
         var exe = Ui.Caption(rule.ExeName, false);
@@ -278,9 +270,9 @@ internal sealed class SettingsWindow : FluentWindow
             Put(4 + i, box);
         }
         Put(4 + cols_.Count, Ui.Row(0,
-            Ui.IconButton(SymbolRegular.ArrowUp24, L.T("Nach oben (höhere Priorität)", "Move up (higher priority)"), () => Move(row, -1)),
-            Ui.IconButton(SymbolRegular.ArrowDown24, L.T("Nach unten", "Move down"), () => Move(row, 1)),
-            Ui.IconButton(SymbolRegular.Delete24, L.T("Entfernen", "Remove"), () => Remove(row))));
+            Ui.IconButton(Icons.Up, L.T("Nach oben (höhere Priorität)", "Move up (higher priority)"), () => Move(row, -1)),
+            Ui.IconButton(Icons.Down, L.T("Nach unten", "Move down"), () => Move(row, 1)),
+            Ui.IconButton(Icons.Delete, L.T("Entfernen", "Remove"), () => Remove(row))));
 
         row.View = new Border { Child = grid, Padding = new Thickness(8, 5, 8, 5), CornerRadius = new CornerRadius(6), Background = Brushes.Transparent };
         row.View.MouseEnter += (_, _) => row.View.SetResourceReference(Border.BackgroundProperty, "SubtleFillColorSecondaryBrush");
@@ -333,7 +325,7 @@ internal sealed class SettingsWindow : FluentWindow
 
     private void UpdateEmptyState()
     {
-        var hint = ruleTable_.Children.OfType<WpfUi.TextBlock>().FirstOrDefault();
+        var hint = ruleTable_.Children.OfType<TextBlock>().FirstOrDefault();
         if (rows_.Count == 0 && hint == null)
         {
             var t = Ui.Body(L.T("Noch keine Programme. Füge oben ein laufendes Programm oder eine Programmdatei hinzu.",
@@ -371,7 +363,7 @@ internal sealed class SettingsWindow : FluentWindow
 
     // ================================================================= Games
 
-    private ToggleSwitch gamesEnabled_ = null!, gExclusive_ = null!, gBorderless_ = null!, gWinList_ = null!, gLibraries_ = null!;
+    private CheckBox gamesEnabled_ = null!, gExclusive_ = null!, gBorderless_ = null!, gWinList_ = null!, gLibraries_ = null!;
     private ListBox extraFolders_ = null!;
     private System.Windows.Controls.TextBox exclusions_ = null!;
 
@@ -387,7 +379,7 @@ internal sealed class SettingsWindow : FluentWindow
         var items = new List<UIElement>
         {
             Ui.Title(L.T("Spiele", "Games")),
-            Ui.Setting(SymbolRegular.Games24, L.T("Spiele automatisch erkennen", "Detect games automatically"),
+            Ui.Setting(Icons.Game, L.T("Spiele automatisch erkennen", "Detect games automatically"),
                        L.T("Gilt, solange das Spiel im Vordergrund ist. Programmregeln haben Vorrang.", "Applies while the game is in the foreground. Program rules take precedence."), gamesEnabled_),
             Ui.Section(L.T("Während ein Spiel läuft", "While a game is running")),
         };
@@ -396,19 +388,19 @@ internal sealed class SettingsWindow : FluentWindow
         {
             var box = Ui.Combo(Options(c, special: true), g.Actions.GetValueOrDefault(c.Id) ?? "", 240, Changed);
             gameBoxes_[c.Id] = box;
-            items.Add(Ui.Setting(SymbolRegular.Desktop24, c.Name, ColSubtitle(c), box));
+            items.Add(Ui.Setting(Icons.Display, c.Name, ColSubtitle(c), box));
         }
         items.Add(Ui.Caption(L.T("Tipp: Nebenbildschirme auf „Schwarz“ oder „Ausschalten“ stellen, damit sie nicht ablenken.",
                                  "Tip: set secondary displays to \"Black\" or \"Turn off\" so they don't distract.")));
 
         items.Add(Ui.Section(L.T("So werden Spiele erkannt", "How games are detected")));
-        items.Add(Ui.Setting(SymbolRegular.FullScreenMaximize24, L.T("Exklusiver Vollbildmodus (DirectX)", "Exclusive fullscreen (DirectX)"),
+        items.Add(Ui.Setting(Icons.FullScreen, L.T("Exklusiver Vollbildmodus (DirectX)", "Exclusive fullscreen (DirectX)"),
             L.T("Zuverlässig bei klassischem Vollbild.", "Reliable for classic fullscreen."), gExclusive_));
-        items.Add(Ui.Setting(SymbolRegular.Window24, L.T("Randloses Vollbildfenster im Vordergrund", "Borderless fullscreen window in the foreground"),
+        items.Add(Ui.Setting(Icons.Window, L.T("Randloses Vollbildfenster im Vordergrund", "Borderless fullscreen window in the foreground"),
             L.T("Für moderne Spiele im „Vollbild-Fenster“. Browser und Videoplayer sind unten ausgenommen.", "For modern games in \"borderless\" mode. Browsers and video players are excluded below."), gBorderless_));
-        items.Add(Ui.Setting(SymbolRegular.XboxController24, L.T("Von Windows als Spiel erkannte Programme (Game Bar)", "Programs Windows recognizes as games (Game Bar)"),
+        items.Add(Ui.Setting(Icons.Game, L.T("Von Windows als Spiel erkannte Programme (Game Bar)", "Programs Windows recognizes as games (Game Bar)"),
             L.T("Nutzt die Liste, die Windows für den Spielmodus führt.", "Uses the list Windows keeps for Game Mode."), gWinList_));
-        items.Add(Ui.Setting(SymbolRegular.Library24, L.T("Programme aus Spielebibliotheken (Steam, Epic, GOG, Ubisoft, EA, Xbox)", "Programs from game libraries (Steam, Epic, GOG, Ubisoft, EA, Xbox)"),
+        items.Add(Ui.Setting(Icons.Library, L.T("Programme aus Spielebibliotheken (Steam, Epic, GOG, Ubisoft, EA, Xbox)", "Programs from game libraries (Steam, Epic, GOG, Ubisoft, EA, Xbox)"),
             L.T("Erkennt Spiele auch im Fenstermodus.", "Detects games even in windowed mode."), gLibraries_));
 
         var libraries = new ListBox { ItemsSource = games_.Libraries, MaxHeight = 160, IsHitTestVisible = false };
@@ -419,24 +411,24 @@ internal sealed class SettingsWindow : FluentWindow
         folders.Children.Add(Ui.Caption(L.T("Zusätzliche Ordner:", "Additional folders:")));
         folders.Children.Add(extraFolders_);
         var folderButtons = Ui.Row(0,
-            Ui.Button(L.T("Ordner hinzufügen …", "Add folder …"), AddFolder, SymbolRegular.FolderAdd24),
+            Ui.Button(L.T("Ordner hinzufügen …", "Add folder …"), AddFolder, Icons.Folder),
             Ui.Button(L.T("Entfernen", "Remove"), () =>
             {
                 if (extraFolders_.SelectedItem is string s) { extraFolders_.ItemsSource = ((List<string>)extraFolders_.ItemsSource).Where(x => x != s).ToList(); Changed(); }
-            }, SymbolRegular.Delete24));
+            }, Icons.Delete));
         folderButtons.Margin = new Thickness(0, 8, 0, 0);
         folders.Children.Add(folderButtons);
-        items.Add(new CardExpander { Icon = new SymbolIcon { Symbol = SymbolRegular.Folder24 }, Header = L.T("Spielebibliotheken", "Game libraries"), Content = folders, Margin = new Thickness(0, 0, 0, 4) });
+        items.Add(Ui.Expander(Icons.Folder, L.T("Spielebibliotheken", "Game libraries"), folders));
 
         exclusions_ = new System.Windows.Controls.TextBox { Text = string.Join(Environment.NewLine, g.ExcludedProcesses), AcceptsReturn = true, Height = 180, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         exclusions_.TextChanged += (_, _) => Changed();
         var excl = new StackPanel();
         excl.Children.Add(Ui.Caption(L.T("Prozessnamen, einer pro Zeile (ohne .exe).", "Process names, one per line (without .exe).")));
         excl.Children.Add(exclusions_);
-        var reset = Ui.Button(L.T("Liste zurücksetzen", "Reset list"), () => exclusions_.Text = string.Join(Environment.NewLine, GameSettings.DefaultExclusions), SymbolRegular.ArrowReset24);
+        var reset = Ui.Button(L.T("Liste zurücksetzen", "Reset list"), () => exclusions_.Text = string.Join(Environment.NewLine, GameSettings.DefaultExclusions), Icons.Reset);
         reset.Margin = new Thickness(0, 8, 0, 0);
         excl.Children.Add(reset);
-        items.Add(new CardExpander { Icon = new SymbolIcon { Symbol = SymbolRegular.Prohibited24 }, Header = L.T("Nie als Spiel behandeln", "Never treat as a game"), Content = excl });
+        items.Add(Ui.Expander(Icons.Blocked, L.T("Nie als Spiel behandeln", "Never treat as a game"), excl));
 
         return Ui.Page([.. items]);
     }
@@ -468,11 +460,11 @@ internal sealed class SettingsWindow : FluentWindow
             {
                 var box = Ui.Combo(Options(c, special: false), work_.Defaults.GetValueOrDefault(c.Id) ?? "", 240, Changed);
                 defaultBoxes_[c.Id] = box;
-                items.Add(Ui.Setting(SymbolRegular.Desktop24, c.Name, c.Current != null ? L.T("aktuell: {0}", "current: {0}", c.Current) : ColSubtitle(c), box));
+                items.Add(Ui.Setting(Icons.Display, c.Name, c.Current != null ? L.T("aktuell: {0}", "current: {0}", c.Current) : ColSubtitle(c), box));
             }
             else
             {
-                items.Add(Ui.Setting(SymbolRegular.Desktop24, c.Name, ColSubtitle(c), Ui.Caption(L.T("immer normal (an, nicht abgedunkelt)", "always normal (on, not blanked)"), false)));
+                items.Add(Ui.Setting(Icons.Display, c.Name, ColSubtitle(c), Ui.Caption(L.T("immer normal (an, nicht abgedunkelt)", "always normal (on, not blanked)"), false)));
             }
         }
         if (cols_.Count == 0) items.Add(Ui.Body(L.T("Keine Bildschirme gefunden.", "No displays found."), secondary: true));
@@ -484,7 +476,7 @@ internal sealed class SettingsWindow : FluentWindow
     private UIElement DisplaysPage()
     {
         profileBoxes_.Clear();
-        var refresh = Ui.Button(L.T("Neu einlesen", "Rescan"), () => tray_?.RefreshDisplays(), SymbolRegular.ArrowSync24);
+        var refresh = Ui.Button(L.T("Neu einlesen", "Rescan"), () => tray_?.RefreshDisplays(), Icons.Refresh);
         refresh.Margin = new Thickness(16, 0, 0, 4);
         var head = Ui.Row(0, Ui.Title(L.T("Bildschirme", "Displays")), refresh);
         var items = new List<UIElement>
@@ -522,7 +514,7 @@ internal sealed class SettingsWindow : FluentWindow
             if (d.Eizo != null)
             {
                 var box = Ui.Combo(d.Eizo.Modes.Select(m => new Opt(m, m)), d.Eizo.CurrentModeName, 220);
-                content.Children.Add(Ui.Setting(SymbolRegular.Color24, L.T("Farbmodus jetzt umschalten", "Switch color mode now"), null,
+                content.Children.Add(Ui.Setting(Icons.Color, L.T("Farbmodus jetzt umschalten", "Switch color mode now"), null,
                     Ui.Row(8, box, Ui.Button(L.T("Aktivieren", "Activate"), () =>
                     {
                         int i = box.SelectedIndex;
@@ -534,12 +526,12 @@ internal sealed class SettingsWindow : FluentWindow
             var offText = Ui.Caption(d.CanTurnOff || method != OffMethod.Disconnect ? OffMethod.Text(method)
                 : L.T("Hauptbildschirm – wird stattdessen schwarz", "Primary display – blanked instead"), false);
             offText.VerticalAlignment = VerticalAlignment.Center;
-            content.Children.Add(Ui.Setting(SymbolRegular.Power24, L.T("Ausschalten", "Turn off"),
+            content.Children.Add(Ui.Setting(Icons.Power, L.T("Ausschalten", "Turn off"),
                 L.T("Der Assistent testet, welche Methode bei diesem Bildschirm wirkt.", "The wizard tests which method works for this display."),
-                Ui.Row(12, offText, Ui.Button(L.T("Einrichten …", "Set up …"), () => RunOffWizard(d), SymbolRegular.Wand24))));
+                Ui.Row(12, offText, Ui.Button(L.T("Einrichten …", "Set up …"), () => RunOffWizard(d), Icons.Wand))));
             if (tray_ != null && d.Width > 0)
             {
-                content.Children.Add(Ui.Setting(SymbolRegular.WeatherMoon24, L.T("Schwarz testen", "Test black"), L.T("Deckt den Bildschirm 3 Sekunden schwarz ab.", "Covers the display in black for 3 seconds."),
+                content.Children.Add(Ui.Setting(Icons.Moon, L.T("Schwarz testen", "Test black"), L.T("Deckt den Bildschirm 3 Sekunden schwarz ab.", "Covers the display in black for 3 seconds."),
                     Ui.Button(L.T("3 s schwarz", "Black for 3 s"), () => { tray_.Show(d); Task.Delay(3000).ContinueWith(_ => tray_.Hide(d.Id)); })));
             }
 
@@ -560,20 +552,20 @@ internal sealed class SettingsWindow : FluentWindow
                     line.Children.Add(box);
                     profiles.Children.Add(line);
                 }
-                content.Children.Add(new CardExpander { Icon = new SymbolIcon { Symbol = SymbolRegular.DocumentBulletList24 }, Header = L.T("Farbprofile", "Color profiles"), Content = profiles, Margin = new Thickness(0, 4, 0, 0) });
+                content.Children.Add(Ui.Expander(Icons.Document, L.T("Farbprofile", "Color profiles"), profiles));
             }
 
             var sub = d.Eizo != null ? $"{L.T("EIZO · USB", "EIZO · USB")} · {d.Eizo.CurrentModeName}" : d.Manufacturer;
             var header = new StackPanel();
-            header.Children.Add(new WpfUi.TextBlock { Text = $"{d.Name}   ·   {d.DeviceName.TrimStart('\\', '.')}", FontTypography = FontTypography.BodyStrong });
+            header.Children.Add(Ui.Strong($"{d.Name}   ·   {d.DeviceName.TrimStart('\\', '.')}"));
             header.Children.Add(Ui.Caption(sub, false));
-            items.Add(new CardExpander { Icon = new SymbolIcon { Symbol = SymbolRegular.Desktop24 }, Header = header, Content = content, IsExpanded = true, Margin = new Thickness(0, 0, 0, 6) });
+            items.Add(Ui.Expander(Icons.Display, header, content, expanded: true));
         }
 
         foreach (var k in work_.Displays.Where(k => displays_.Displays.All(d => d.Id != k.Id)))
         {
-            items.Add(Ui.Setting(SymbolRegular.DesktopOff24, k.Name, L.T("Nicht verbunden · zuletzt gesehen {0:g}", "Not connected · last seen {0:g}", k.LastSeen),
-                Ui.Button(L.T("Vergessen", "Forget"), () => { Collect(); work_.Displays.RemoveAll(x => x.Id == k.Id); Changed(); Rebuild(); }, SymbolRegular.Delete24)));
+            items.Add(Ui.Setting(Icons.Display, k.Name, L.T("Nicht verbunden · zuletzt gesehen {0:g}", "Not connected · last seen {0:g}", k.LastSeen),
+                Ui.Button(L.T("Vergessen", "Forget"), () => { Collect(); work_.Displays.RemoveAll(x => x.Id == k.Id); Changed(); Rebuild(); }, Icons.Delete)));
         }
         return Ui.Page([.. items]);
     }
@@ -619,8 +611,8 @@ internal sealed class SettingsWindow : FluentWindow
     // ================================================================= General
 
     private ComboBox language_ = null!, theme_ = null!;
-    private ToggleSwitch autostart_ = null!, notify_ = null!, profiles_ = null!, autoCheck_ = null!, autoInstall_ = null!;
-    private NumberBox poll_ = null!;
+    private CheckBox autostart_ = null!, notify_ = null!, profiles_ = null!, autoCheck_ = null!, autoInstall_ = null!;
+    private ComboBox poll_ = null!;
 
     private UIElement GeneralPage()
     {
@@ -631,48 +623,47 @@ internal sealed class SettingsWindow : FluentWindow
         autostart_ = Ui.Toggle(work_.StartWithWindows, Changed);
         notify_ = Ui.Toggle(work_.ShowNotifications, Changed);
         profiles_ = Ui.Toggle(work_.SwitchColorProfiles, Changed);
-        poll_ = new NumberBox { Value = work_.PollIntervalMs, Minimum = 250, Maximum = 10000, SmallChange = 250, LargeChange = 1000, Width = 160, MaxDecimalPlaces = 0 };
-        poll_.ValueChanged += (_, _) => Changed();
+        poll_ = Ui.Combo(new[] { 500, 1000, 1500, 2000, 3000, 5000 }.Select(v => new Opt(v.ToString(), $"{v} ms")), work_.PollIntervalMs.ToString(), 160, Changed);
         autoCheck_ = Ui.Toggle(work_.AutoCheckUpdates, Changed);
         autoInstall_ = Ui.Toggle(work_.AutoInstallUpdates, Changed);
 
-        var coffee = Ui.Button(L.T("Spendier mir einen Kaffee", "Buy me a coffee"), () => Shell.Open(Links.Donate), SymbolRegular.DrinkCoffee24, primary: true);
+        var coffee = Ui.Button(L.T("Spendier mir einen Kaffee", "Buy me a coffee"), () => Shell.Open(Links.Donate), Icons.Heart, primary: true);
 
         return Ui.Page(
             Ui.Title(L.T("Allgemein", "General")),
             Ui.Section(L.T("Darstellung", "Appearance")),
-            Ui.Setting(SymbolRegular.LocalLanguage24, L.T("Sprache", "Language"), null, language_),
-            Ui.Setting(SymbolRegular.DarkTheme24, L.T("Farbschema", "Theme"), null, theme_),
+            Ui.Setting(Icons.Globe, L.T("Sprache", "Language"), null, language_),
+            Ui.Setting(Icons.Theme, L.T("Farbschema", "Theme"), null, theme_),
             Ui.Section(L.T("Start und Verhalten", "Startup and behavior")),
-            Ui.Setting(SymbolRegular.Power24, L.T("Mit Windows starten", "Start with Windows"), null, autostart_),
-            Ui.Setting(SymbolRegular.Alert24, L.T("Beim Umschalten kurz benachrichtigen", "Show a short notification when switching"), null, notify_),
-            Ui.Setting(SymbolRegular.Color24, L.T("Windows-Farbprofil mitschalten", "Also switch the Windows color profile"),
+            Ui.Setting(Icons.Power, L.T("Mit Windows starten", "Start with Windows"), null, autostart_),
+            Ui.Setting(Icons.Bell, L.T("Beim Umschalten kurz benachrichtigen", "Show a short notification when switching"), null, notify_),
+            Ui.Setting(Icons.Color, L.T("Windows-Farbprofil mitschalten", "Also switch the Windows color profile"),
                 L.T("Setzt beim Umschalten das passende ICC-Profil als Windows-Standard des Bildschirms, so wie ColorNavigator.",
                     "Sets the matching ICC profile as the display's Windows default when switching, like ColorNavigator does."), profiles_),
-            Ui.Setting(SymbolRegular.Timer24, L.T("Prüfintervall (ms)", "Check interval (ms)"),
+            Ui.Setting(Icons.Timer, L.T("Prüfintervall (ms)", "Check interval (ms)"),
                 L.T("Programmwechsel werden sofort erkannt; das Intervall betrifft nur Hintergrundprüfungen.",
                     "Program switches are detected immediately; the interval only affects background checks."), poll_),
             Ui.Section(L.T("Updates", "Updates")),
-            Ui.Setting(SymbolRegular.ArrowDownload24, L.T("Automatisch nach Updates suchen", "Check for updates automatically"),
+            Ui.Setting(Icons.Download, L.T("Automatisch nach Updates suchen", "Check for updates automatically"),
                 L.T("Installierte Version: {0}", "Installed version: {0}", Updater.Current), autoCheck_),
-            Ui.Setting(SymbolRegular.ArrowSync24, L.T("Updates ohne Nachfrage installieren", "Install updates without asking"),
+            Ui.Setting(Icons.Refresh, L.T("Updates ohne Nachfrage installieren", "Install updates without asking"),
                 L.T("Updates kommen aus den GitHub-Releases; die Prüfsumme wird kontrolliert.", "Updates come from GitHub releases; the checksum is verified."), autoInstall_),
-            Ui.Setting(SymbolRegular.CloudArrowDown24, L.T("Jetzt nach Updates suchen", "Check now"), null,
+            Ui.Setting(Icons.Download, L.T("Jetzt nach Updates suchen", "Check now"), null,
                 Ui.Row(0,
                     Ui.Button(L.T("Prüfen", "Check"), () => { if (tray_ != null) _ = tray_.CheckForUpdatesAsync(true); }),
                     Ui.Button(L.T("Releases auf GitHub", "Releases on GitHub"), () => Shell.Open(Updater.ReleasesUrl)))),
             Ui.Section(L.T("Gefällt dir EizoSwitcher?", "Do you like EizoSwitcher?")),
-            Ui.Setting(SymbolRegular.Heart24, L.T("Gefällt dir EizoSwitcher?", "Do you like EizoSwitcher?"),
+            Ui.Setting(Icons.Heart, L.T("Gefällt dir EizoSwitcher?", "Do you like EizoSwitcher?"),
                 L.T("EizoSwitcher ist kostenlos. Wenn es dir den Alltag erleichtert, freue ich mich über einen Kaffee.",
                     "EizoSwitcher is free. If it makes your day a little easier, I'd be happy about a coffee."), coffee),
             Ui.Section(L.T("Info", "About")),
-            Ui.Setting(SymbolRegular.Info24, "EizoSwitcher " + Updater.Current,
+            Ui.Setting(Icons.Info, "EizoSwitcher " + Updater.Current,
                 L.T("EIZO, ColorEdge und ColorNavigator sind Marken der EIZO Corporation. EizoSwitcher ist ein unabhängiges Projekt und nicht mit EIZO verbunden.",
                     "EIZO, ColorEdge and ColorNavigator are trademarks of EIZO Corporation. EizoSwitcher is an independent project, not affiliated with EIZO."),
                 Ui.Row(0,
                     Ui.Button(L.T("Projektseite", "Project page"), () => Shell.Open(Links.Project)),
                     Ui.Button(L.T("Protokoll anzeigen", "Show log"), () => Shell.Open(Log.FilePath)))),
-            Ui.Setting(SymbolRegular.FolderOpen24, L.T("Einstellungsordner öffnen", "Open settings folder"), Log.Folder,
+            Ui.Setting(Icons.Folder, L.T("Einstellungsordner öffnen", "Open settings folder"), Log.Folder,
                 Ui.Button(L.T("Öffnen", "Open"), () => { Directory.CreateDirectory(Log.Folder); Shell.Open(Log.Folder); })));
     }
 
@@ -737,7 +728,7 @@ internal sealed class SettingsWindow : FluentWindow
             work_.StartWithWindows = autostart_.IsChecked == true;
             work_.ShowNotifications = notify_.IsChecked == true;
             work_.SwitchColorProfiles = profiles_.IsChecked == true;
-            work_.PollIntervalMs = (int)(poll_.Value ?? 1500);
+            work_.PollIntervalMs = int.TryParse(Ui.Token(poll_), out int ms) ? ms : 1500;
             work_.AutoCheckUpdates = autoCheck_.IsChecked == true;
             work_.AutoInstallUpdates = autoInstall_.IsChecked == true;
         }

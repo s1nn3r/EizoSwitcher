@@ -12,18 +12,21 @@ using System.Text.Json;
 
 namespace EizoSwitcher.Services;
 
-public sealed record UpdateInfo(Version Version, string Tag, string ZipUrl, string? HashUrl, string PageUrl, string Notes);
+public sealed record UpdateInfo(Version Version, string Tag, string? ZipUrl, string? ZipHashUrl, string? SetupUrl, string? SetupHashUrl, string PageUrl, string Notes);
 
 /// <summary>
-/// Updates from GitHub releases: downloads EizoSwitcher-win-x64.zip, checks its SHA-256 (asset *.sha256)
-/// and – if the running exe is Authenticode-signed – requires the same publisher on the new one.
-/// The running exe is renamed (allowed by Windows), the new one copied in place and started.
+/// Updates from GitHub releases. Installed via setup (unins000.exe next to the exe): downloads
+/// EizoSwitcher-Setup.exe and runs it silently – it closes this app, updates and restarts it.
+/// Portable (zip) copy: downloads EizoSwitcher-win-x64.zip, renames the running exe (allowed by Windows),
+/// copies the new files in place and starts them. Both check the SHA-256 (asset *.sha256) and – if the
+/// running exe is Authenticode-signed – require the same publisher on the download.
 /// </summary>
 [SupportedOSPlatform("windows")]
 public static class Updater
 {
     public const string Repository = "s1nn3r/EizoSwitcher";
     public const string AssetName = "EizoSwitcher-win-x64.zip";
+    public const string SetupName = "EizoSwitcher-Setup.exe";
     private static readonly string[] Executables = ["EizoSwitcher.exe", "eizoswitch.exe"];
 
     private static readonly HttpClient http_ = CreateClient();
@@ -50,15 +53,13 @@ public static class Updater
         string tag = root.GetProperty("tag_name").GetString() ?? "";
         if (!Version.TryParse(tag.TrimStart('v', 'V'), out var version) || version <= Current) return null;
 
-        string? zip = null, hash = null;
+        var assets = new Dictionary<string, string>();
         foreach (var a in root.GetProperty("assets").EnumerateArray())
-        {
-            string? name = a.GetProperty("name").GetString(), url = a.GetProperty("browser_download_url").GetString();
-            if (name == AssetName) zip = url;
-            else if (name == AssetName + ".sha256") hash = url;
-        }
-        if (zip == null) return null;
-        return new UpdateInfo(version, tag, zip, hash,
+            if (a.GetProperty("name").GetString() is { } name && a.GetProperty("browser_download_url").GetString() is { } url) assets[name] = url;
+        string? zip = assets.GetValueOrDefault(AssetName), setup = assets.GetValueOrDefault(SetupName);
+        if ((IsInstalled ? setup ?? zip : zip) == null) return null;
+        return new UpdateInfo(version, tag, zip, assets.GetValueOrDefault(AssetName + ".sha256"),
+            setup, assets.GetValueOrDefault(SetupName + ".sha256"),
             root.GetProperty("html_url").GetString() ?? ReleasesUrl,
             root.TryGetProperty("body", out var body) ? body.GetString() ?? "" : "");
     }
@@ -72,18 +73,16 @@ public static class Updater
         if (Directory.Exists(work)) Directory.Delete(work, true);
         Directory.CreateDirectory(work);
 
-        string zipPath = Path.Combine(work, AssetName);
-        await using (var file = File.Create(zipPath))
-        await using (var stream = await http_.GetStreamAsync(update.ZipUrl, ct))
-            await stream.CopyToAsync(file, ct);
-
-        if (update.HashUrl != null)
+        if (IsInstalled && update.SetupUrl != null)
         {
-            string expected = (await http_.GetStringAsync(update.HashUrl, ct)).Split((char[])[' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries)[0];
-            string actual = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(zipPath, ct)));
-            if (!actual.Equals(expected, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidDataException(L.T("Prüfsumme des Updates stimmt nicht.", "Update checksum mismatch."));
+            string setup = await DownloadAsync(update.SetupUrl, update.SetupHashUrl, Path.Combine(work, SetupName), ct);
+            VerifySignature(exe, setup);
+            // the setup closes this app (CloseApplications), installs and starts the new version
+            Process.Start(new ProcessStartInfo(setup, "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS") { UseShellExecute = false });
+            return;
         }
+
+        string zipPath = await DownloadAsync(update.ZipUrl ?? throw new InvalidDataException("No update package"), update.ZipHashUrl, Path.Combine(work, AssetName), ct);
 
         string extracted = Path.Combine(work, "files");
         ZipFile.ExtractToDirectory(zipPath, extracted);
@@ -115,6 +114,24 @@ public static class Updater
         }
 
         Process.Start(new ProcessStartInfo(exe, "--updated") { UseShellExecute = false });
+    }
+
+    /// <summary>Installed with the setup (not a portable copy)?</summary>
+    public static bool IsInstalled => File.Exists(Path.Combine(AppContext.BaseDirectory, "unins000.exe"));
+
+    private static async Task<string> DownloadAsync(string url, string? hashUrl, string target, CancellationToken ct)
+    {
+        await using (var file = File.Create(target))
+        await using (var stream = await http_.GetStreamAsync(url, ct))
+            await stream.CopyToAsync(file, ct);
+        if (hashUrl != null)
+        {
+            string expected = (await http_.GetStringAsync(hashUrl, ct)).Split((char[])[' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries)[0];
+            string actual = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(target, ct)));
+            if (!actual.Equals(expected, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException(L.T("Prüfsumme des Updates stimmt nicht.", "Update checksum mismatch."));
+        }
+        return target;
     }
 
     /// <summary>Removes *.old files left over from the previous update.</summary>
