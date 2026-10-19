@@ -24,23 +24,18 @@ $pkg = Join-Path $out 'package'
 Remove-Item $out -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $pkg | Out-Null
 
-Write-Host "== Tray app (self-contained single file)" -ForegroundColor Cyan
-dotnet publish "$root\src\EizoSwitcher\EizoSwitcher.csproj" -c Release -r win-x64 --self-contained `
-    -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
-    -p:DebugType=none -p:Version=$Version -o "$out\app" --nologo -v q
+# Framework-dependent single files: tiny downloads, the .NET 10 Desktop Runtime is installed once
+# (the exe offers the download link itself if it is missing).
+$common = @('-c', 'Release', '-r', 'win-x64', '--self-contained', 'false', '-p:PublishSingleFile=true',
+            '-p:DebugType=none', "-p:Version=$Version", '--nologo', '-v', 'q')
+
+Write-Host "== Tray app" -ForegroundColor Cyan
+dotnet publish "$root\src\EizoSwitcher\EizoSwitcher.csproj" @common -o "$out\app"
 if ($LASTEXITCODE) { throw 'publish app failed' }
 
-Write-Host "== Command line tool (Native AOT)" -ForegroundColor Cyan
-dotnet publish "$root\src\EizoSwitcher.Cli\EizoSwitcher.Cli.csproj" -c Release -r win-x64 `
-    -p:DebugType=none -p:Version=$Version -o "$out\cli" --nologo -v q
-if ($LASTEXITCODE) {
-    # Native AOT needs the MSVC linker (Visual Studio "Desktop development with C++").
-    Write-Warning 'Native AOT failed, falling back to a trimmed self-contained single file'
-    dotnet publish "$root\src\EizoSwitcher.Cli\EizoSwitcher.Cli.csproj" -c Release -r win-x64 --self-contained `
-        -p:PublishAot=false -p:PublishTrimmed=true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true `
-        -p:DebugType=none -p:Version=$Version -o "$out\cli" --nologo -v q
-    if ($LASTEXITCODE) { throw 'publish cli failed' }
-}
+Write-Host "== Command line tool" -ForegroundColor Cyan
+dotnet publish "$root\src\EizoSwitcher.Cli\EizoSwitcher.Cli.csproj" @common -o "$out\cli"
+if ($LASTEXITCODE) { throw 'publish cli failed' }
 
 Copy-Item "$out\app\EizoSwitcher.exe", "$out\cli\eizoswitch.exe" $pkg
 Copy-Item "$root\LICENSE" $pkg

@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Runtime.Versioning;
-using Avalonia.Media.Imaging;
 using Microsoft.Win32;
 
 namespace EizoSwitcher.Services;
@@ -30,28 +29,27 @@ public static class Autostart
 [SupportedOSPlatform("windows")]
 public static class ExeIcons
 {
-    private static readonly Dictionary<string, Bitmap?> cache_ = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, Image?> cache_ = new(StringComparer.OrdinalIgnoreCase);
 
-    public static Bitmap? For(string? path)
+    /// <summary>Program icon scaled to <paramref name="size"/> pixels, or null.</summary>
+    public static Image? For(string? path, int size)
     {
         if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
+        string key = $"{size}|{path}";
         lock (cache_)
         {
-            if (cache_.TryGetValue(path, out var bmp)) return bmp;
+            if (cache_.TryGetValue(key, out var img)) return img;
             try
             {
-                using var icon = System.Drawing.Icon.ExtractAssociatedIcon(path);
-                using var bitmap = icon?.ToBitmap();
-                if (bitmap != null)
+                using var icon = Icon.ExtractAssociatedIcon(path);
+                if (icon != null)
                 {
-                    using var ms = new MemoryStream();
-                    bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-                    ms.Position = 0;
-                    bmp = new Bitmap(ms);
+                    using var large = icon.ToBitmap();
+                    img = new Bitmap(large, size, size);
                 }
             }
             catch (Exception e) when (e is ArgumentException or IOException or System.ComponentModel.Win32Exception) { }
-            return cache_[path] = bmp;
+            return cache_[key] = img;
         }
     }
 }

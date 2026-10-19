@@ -3,27 +3,25 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationIcon>Assets\EizoSwitcher.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationDefaultFont>Segoe UI, 9pt</ApplicationDefaultFont>
     <Version>1.0.0</Version>
     <Product>EizoSwitcher</Product>
     <Authors>Marc Breuer</Authors>
     <Copyright>© 2026 Marc Breuer</Copyright>
     <Description>Switches EIZO color modes and blanks displays depending on running programs and games.</Description>
-    <SatelliteResourceLanguages>en;de</SatelliteResourceLanguages>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- Application.SetColorMode (dark mode) is still marked experimental -->
+    <NoWarn>$(NoWarn);WFO5001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <AvaloniaResource Include="Assets\EizoSwitcher.ico" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Avalonia" Version="12.1.4" />
-    <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
-    <PackageReference Include="System.Drawing.Common" Version="10.0.13" />
+    <EmbeddedResource Include="Assets\EizoSwitcher.ico" LogicalName="EizoSwitcher.ico" />
   </ItemGroup>
 
   <ItemGroup>

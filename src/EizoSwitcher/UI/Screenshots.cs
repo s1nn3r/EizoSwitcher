@@ -1,63 +1,44 @@
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Media.Imaging;
-using Avalonia.Threading;
+using System.Drawing.Imaging;
 using EizoSwitcher.Services;
 
 namespace EizoSwitcher.UI;
 
 /// <summary>
-/// Renders the settings window tabs to PNG for the documentation:
-///   EizoSwitcher.exe --screenshots docs/screenshots/de   (language via EIZOSWITCHER_LANG)
+/// Renders the settings tabs to PNG for the documentation:
+///   EizoSwitcher.exe --screenshots docs\screenshots\en [--dark]   (language via EIZOSWITCHER_LANG)
 /// Uses the real displays but demo rules and hides serial numbers.
 /// </summary>
 internal static class Screenshots
 {
-    public static void Run(IClassicDesktopStyleApplicationLifetime desktop, string dir)
+    public static int Run(string dir)
     {
         Ui.Demo = true;
-        if (App.Args.Contains("--dark")) Application.Current!.RequestedThemeVariant = Avalonia.Styling.ThemeVariant.Dark;
         Directory.CreateDirectory(dir);
-        var displays = new DisplayService();
+        using var displays = new DisplayService();
         displays.Refresh();
 
-        var window = new SettingsWindow(DemoSettings(displays), displays, new GameDetector(), null!)
+        using var form = new SettingsForm(DemoSettings(displays), displays, new GameDetector(), null)
         {
-            WindowStartupLocation = WindowStartupLocation.Manual,
-            Position = new PixelPoint(-20000, -20000),
+            StartPosition = FormStartPosition.Manual,
+            Location = new Point(-20000, -20000),
             ShowInTaskbar = false,
-            Width = 1180,
-            Height = 700,
+            Size = new Size(1180, 720),
         };
-        window.Show();
+        form.Show();
 
         string[] names = ["1-programs", "2-games", "3-defaults", "4-displays", "5-general"];
-        int tab = 0;
-        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };
-        timer.Tick += (_, _) =>
+        for (int i = 0; i < names.Length && i < form.TabCount; i++)
         {
-            if (tab > 0) Capture(window, Path.Combine(dir, names[tab - 1] + ".png"));
-            if (tab == names.Length)
-            {
-                timer.Stop();
-                window.Close();
-                displays.Dispose();
-                desktop.Shutdown();
-                return;
-            }
-            window.Tabs.SelectedIndex = tab++;
-        };
-        timer.Start();
-    }
-
-    private static void Capture(Window w, string path)
-    {
-        double scale = w.RenderScaling;
-        var size = new PixelSize((int)(w.ClientSize.Width * scale), (int)(w.ClientSize.Height * scale));
-        using var bmp = new RenderTargetBitmap(size, new Vector(96 * scale, 96 * scale));
-        bmp.Render(w);
-        bmp.Save(path);
+            form.SelectedTab = i;
+            Application.DoEvents();
+            Thread.Sleep(150);
+            Application.DoEvents();
+            using var bmp = new Bitmap(form.Root.Width, form.Root.Height);
+            form.Root.DrawToBitmap(bmp, new Rectangle(Point.Empty, bmp.Size));
+            bmp.Save(Path.Combine(dir, names[i] + ".png"), ImageFormat.Png);
+        }
+        form.Close();
+        return 0;
     }
 
     private static AppSettings DemoSettings(DisplayService displays)

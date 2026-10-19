@@ -45,6 +45,7 @@ ColorNavigator can switch modes – but only when *you* click. There is no "when
 ## What you need
 
 - Windows 10 or 11 (64-bit)
+- the free [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) (x64) – if it is missing, EizoSwitcher offers the download link on first start. That's why the whole download is under 1 MB.
 - **For color modes:** an EIZO monitor with its **USB upstream cable** connected to the PC – the same cable ColorNavigator uses
 - **For "turn off":** a display with DDC/CI enabled in its menu. EIZO ColorEdge CG/CS models usually don't answer DDC/CI – "Black" works for them.
 
@@ -173,7 +174,7 @@ dotnet build
 | Project | |
 |---|---|
 | `src/EizoSwitcher.Core` | USB HID protocol, monitor access, translations |
-| `src/EizoSwitcher` | tray app (Avalonia UI) |
+| `src/EizoSwitcher` | tray app (Windows Forms) |
 | `src/EizoSwitcher.Cli` | `eizoswitch` command line tool |
 | `tools/` | release script, icon renderer, translation helper |
 

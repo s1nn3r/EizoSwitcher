@@ -9,8 +9,6 @@
     <RootNamespace>EizoSwitcher.Cli</RootNamespace>
 
     <InvariantGlobalization>false</InvariantGlobalization>
-    <PublishAot>true</PublishAot>
-    <OptimizationPreference>Size</OptimizationPreference>
   </PropertyGroup>
 
   <ItemGroup>

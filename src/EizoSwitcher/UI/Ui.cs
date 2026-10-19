@@ -1,97 +1,111 @@
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Layout;
-using Avalonia.Media;
-using Avalonia.Platform;
-
 namespace EizoSwitcher.UI;
 
-/// <summary>Small factory helpers so the code-built UI stays readable.</summary>
+/// <summary>Combo box entry: a token (mode name, "@black", …) with a display text.</summary>
+internal sealed record Opt(string Token, string Label)
+{
+    public override string ToString() => Label;
+}
+
 internal static class Ui
 {
     /// <summary>Screenshot mode: hides real serial numbers.</summary>
     public static bool Demo { get; set; }
 
-    public static readonly IBrush Subtle = new SolidColorBrush(Color.FromArgb(0x14, 0x80, 0x80, 0x80));
-    public static readonly IBrush SubtleBorder = new SolidColorBrush(Color.FromArgb(0x30, 0x80, 0x80, 0x80));
-    public static readonly IBrush Warning = new SolidColorBrush(Color.FromRgb(0xE0, 0x8A, 0x1E));
-
-    public static WindowIcon AppIcon() => new(AssetLoader.Open(new Uri("avares://EizoSwitcher/Assets/EizoSwitcher.ico")));
+    public static readonly Font HeadingFont = new("Segoe UI Semibold", 14f);
+    public static readonly Font SectionFont = new("Segoe UI Semibold", 10.5f);
+    public static readonly Font HintFont = new("Segoe UI", 8.75f);
 
     public static string Serial(string serial) => Demo && serial.Length > 0 ? "12345678" : serial;
 
-    public static TextBlock Text(string text, double size = 13, FontWeight weight = FontWeight.Normal, bool wrap = false, double opacity = 1) =>
-        new()
-        {
-            Text = text, FontSize = size, FontWeight = weight, Opacity = opacity,
-            TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap,
-            TextTrimming = wrap ? TextTrimming.None : TextTrimming.CharacterEllipsis,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-
-    public static TextBlock Heading(string text) => Text(text, 18, FontWeight.SemiBold);
-    public static TextBlock Hint(string text) => Text(text, 12.5, wrap: true, opacity: 0.72);
+    public static Icon AppIcon(Size size)
+    {
+        using var s = typeof(Ui).Assembly.GetManifestResourceStream("EizoSwitcher.ico")!;
+        return new Icon(s, size);
+    }
 
     public static Button Button(string text, Action click, bool accent = false)
     {
-        var b = new Button { Content = text, VerticalAlignment = VerticalAlignment.Center };
-        if (accent) b.Classes.Add("accent");
+        var b = new Button { Text = text, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = new Padding(8, 2, 8, 2), Margin = new Padding(0, 4, 8, 4) };
+        if (accent) b.Font = new Font(b.Font, FontStyle.Bold);
         b.Click += (_, _) => click();
         return b;
     }
 
-    public static Button IconButton(string glyph, string tip, Action click)
+    public static CheckBox Check(string text, bool value) =>
+        new() { Text = text, Checked = value, AutoSize = true, Margin = new Padding(0, 6, 0, 2) };
+
+    public static ComboBox Combo(IEnumerable<Opt> options, string? selected, int width = 240)
     {
-        var b = new Button
-        {
-            Content = glyph, Width = 30, Height = 30, Padding = new Thickness(0),
-            HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center,
-            Background = Brushes.Transparent, BorderThickness = new Thickness(0),
-        };
-        ToolTip.SetTip(b, tip);
-        b.Click += (_, _) => click();
-        return b;
+        var list = options.ToList();
+        if (selected != null && list.All(o => !o.Token.Equals(selected, StringComparison.OrdinalIgnoreCase)))
+            list.Add(new Opt(selected, selected + "  ⚠"));
+        var box = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = width, Margin = new Padding(0, 3, 12, 3) };
+        box.Items.AddRange([.. list]);
+        box.SelectedItem = list.FirstOrDefault(o => o.Token.Equals(selected ?? "", StringComparison.OrdinalIgnoreCase)) ?? list[0];
+        return box;
     }
 
-    public static CheckBox Check(string text, bool value, string? tip = null)
-    {
-        var c = new CheckBox { Content = text, IsChecked = value };
-        if (tip != null) ToolTip.SetTip(c, tip);
-        return c;
-    }
+    public static string Token(ComboBox box) => (box.SelectedItem as Opt)?.Token ?? "";
 
-    public static Border Card(params Control[] children)
+    public static FlowLayoutPanel Flow(params Control[] controls)
     {
-        var panel = new StackPanel { Spacing = 8 };
-        panel.Children.AddRange(children);
-        return new Border
-        {
-            Background = Subtle, BorderBrush = SubtleBorder, BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(8), Padding = new Thickness(16, 14), Child = panel,
-        };
-    }
-
-    public static StackPanel Row(double spacing, params Control[] children)
-    {
-        var p = new StackPanel { Orientation = Orientation.Horizontal, Spacing = spacing };
-        p.Children.AddRange(children);
+        var p = new FlowLayoutPanel { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, WrapContents = false, Margin = new Padding(0), Padding = new Padding(0) };
+        p.Controls.AddRange(controls);
         return p;
     }
 
-    public static StackPanel Column(double spacing, params Control[] children)
+    public static Label Text(string text, Font? font = null, bool dim = false) => new()
     {
-        var p = new StackPanel { Spacing = spacing };
-        p.Children.AddRange(children);
-        return p;
+        Text = text, AutoSize = true, Font = font, Margin = new Padding(0, 6, 12, 2),
+        ForeColor = dim ? SystemColors.GrayText : SystemColors.ControlText,
+    };
+}
+
+/// <summary>Builds a scrollable settings page as a two-column table (label | editor).</summary>
+internal sealed class PageBuilder
+{
+    private const int TextWidth = 760;
+    private readonly TableLayoutPanel table_ = new()
+    {
+        ColumnCount = 2, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+        Location = new Point(0, 0), Padding = new Padding(24, 14, 24, 24),
+    };
+
+    public PageBuilder()
+    {
+        table_.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        table_.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
     }
 
-    /// <summary>Scrollable tab page with a readable maximum width.</summary>
-    public static ScrollViewer Page(params Control[] children)
+    public PageBuilder Heading(string text) => Span(new Label { Text = text, Font = Ui.HeadingFont, AutoSize = true, Margin = new Padding(0, 0, 0, 6) });
+
+    public PageBuilder Section(string text) => Span(new Label { Text = text, Font = Ui.SectionFont, AutoSize = true, Margin = new Padding(0, 18, 0, 2) });
+
+    public PageBuilder Hint(string text, int indent = 0) => Span(new Label
     {
-        var col = Column(14, children);
-        col.Margin = new Thickness(24, 18, 24, 24);
-        col.MaxWidth = 980;
-        col.HorizontalAlignment = HorizontalAlignment.Left;
-        return new ScrollViewer { Content = col };
+        Text = text, Font = Ui.HintFont, ForeColor = SystemColors.GrayText, AutoSize = true,
+        MaximumSize = new Size(TextWidth - indent, 0), Margin = new Padding(indent, 1, 0, 4),
+    });
+
+    public PageBuilder Line(string label, Control editor, string? labelSub = null)
+    {
+        Control left = labelSub == null
+            ? new Label { Text = label, AutoSize = true, Margin = new Padding(0, 7, 24, 0) }
+            : Ui.Flow(new Label { Text = label, AutoSize = true, Font = new Font(Control.DefaultFont, FontStyle.Bold), Margin = new Padding(0, 4, 8, 0) },
+                      new Label { Text = labelSub, AutoSize = true, ForeColor = SystemColors.GrayText, Font = Ui.HintFont, Margin = new Padding(0, 6, 24, 0) });
+        int row = table_.RowCount++;
+        table_.Controls.Add(left, 0, row);
+        table_.Controls.Add(editor, 1, row);
+        return this;
     }
+
+    public PageBuilder Span(Control c)
+    {
+        int row = table_.RowCount++;
+        table_.Controls.Add(c, 0, row);
+        table_.SetColumnSpan(c, 2);
+        return this;
+    }
+
+    public Control Build() => new Panel { AutoScroll = true, Dock = DockStyle.Fill, Controls = { table_ } };
 }
