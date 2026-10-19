@@ -13,7 +13,6 @@
   "Also switch the Windows color profile": "Changer aussi le profil couleur de Windows",
   "Appearance": "Apparence",
   "Applies while the game is in the foreground. Program rules take precedence.": "S’applique tant que le jeu est au premier plan. Les règles de programme sont prioritaires.",
-  "As soon as one of these programs is in the foreground, the displays switch as configured. When you switch to another program or it exits, the defaults apply again. \"—\" leaves a display unchanged. Grey rows refer to a color mode or display that does not exist (anymore).": "Dès que l’un de ces programmes est au premier plan, les écrans basculent selon la configuration. Lorsque vous passez à un autre programme ou qu’il se ferme, les réglages par défaut s’appliquent à nouveau. « — » laisse un écran inchangé. Les lignes grisées renvoient à un mode couleur ou un écran qui n’existe pas (ou plus).",
   "Automatic (no ColorNavigator profile found)": "Automatique (aucun profil ColorNavigator trouvé)",
   "Automatic switching active": "Basculement automatique actif",
   "Automatic switching paused": "Basculement automatique en pause",
@@ -177,5 +176,8 @@
   "yes": "oui",
   "{0} is not connected": "{0} n’est pas connecté",
   "current": "actuel",
-  "(disabled on the monitor)": "(désactivé sur le moniteur)"
+  "(disabled on the monitor)": "(désactivé sur le moniteur)",
+  "As soon as one of these programs is in the foreground, the displays switch as configured. The color mode stays until the program exits or another listed program or game comes to the front (configurable under General); black and off only apply while it is in the foreground. \"—\" leaves a display unchanged. Grey rows refer to a color mode or display that does not exist (anymore).": "Dès qu'un de ces programmes est au premier plan, les écrans basculent comme configuré. Le mode couleur reste actif jusqu'à la fermeture du programme ou jusqu'à ce qu'un autre programme de la liste ou un jeu passe au premier plan (réglable dans Général) ; noir et éteint ne s'appliquent que tant qu'il est au premier plan. « — » laisse l'écran inchangé. Les lignes grises renvoient à un mode couleur ou un écran qui n'existe pas (plus).",
+  "Keep the color mode until the program exits": "Garder le mode couleur jusqu'à la fermeture du programme",
+  "When off, the defaults apply as soon as another window becomes active. Black and off always apply only in the foreground.": "Désactivé : les réglages par défaut s'appliquent dès qu'une autre fenêtre devient active. Noir et éteint ne s'appliquent toujours qu'au premier plan."
 }

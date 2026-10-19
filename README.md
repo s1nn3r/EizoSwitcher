@@ -32,7 +32,7 @@ ColorNavigator can switch modes – but only when *you* click. There is no "when
 
 ## What it does
 
-- **Follows the program you work in** – the moment a program comes to the foreground, its settings apply; switch to another program and the defaults are back. One table with a column for every display: Resolve → BT.709 on the main screen, Photoshop → CAL, Lightroom → CAL on both.
+- **Follows the program you work in** – the moment a program comes to the foreground, its settings apply. Its color mode stays while you check mail or look something up in the browser, and only goes back to your defaults when the program exits or another listed program takes over. One table with a column for every display: Resolve → BT.709 on the main screen, Photoshop → CAL, Lightroom → CAL on both.
 - **Real EIZO color modes over USB** – it reads the mode names straight from the monitor (User, BT.709, sRGB, CAL, …). ColorNavigator can stay installed, but doesn't have to.
 - **Every display, any brand** – any display can be blanked **black** or **turned off**. A small wizard finds out per display how it can be turned off (DDC/CI or disconnecting it from the desktop). Perfect for gaming without a bright second screen in the corner of your eye.
 - **Game detection** – DirectX fullscreen, borderless fullscreen, the Windows game list and your Steam / Epic / GOG / Ubisoft / EA / Xbox libraries.
@@ -81,7 +81,7 @@ Click **＋ Running program …** and pick the program (start it first), or choo
 | **■ Black** | a black window covers the display – works with every monitor, click it to see the desktop again |
 | **⏻ Turn off** | the display goes off – set up once per display under *Displays → Turn off → Set up …* |
 
-- Only the program **in the foreground** counts. Clicking the taskbar, desktop or start menu keeps the current state; switching to any other program brings the defaults back.
+- A program switches the displays when it comes **to the foreground**. Switching to a program that is not in the list keeps its color mode until it exits (turn this off under *General* to get the defaults back right away). Black and off only apply while the program is in front, so a second screen comes back as soon as you click something else.
 - **Path** only triggers when the program runs from exactly that folder – handy for generic names like `launcher.exe`.
 - A **grey row** points to a color mode or display that doesn't exist (anymore), e.g. after renaming a mode on the monitor. Hover it to see why.
 
@@ -122,7 +122,7 @@ Language, light/dark theme, autostart, notifications, updates.
 3. **Windows game list** – programs Windows has classified as games for Game Mode / Game Bar.
 4. **Game libraries** – programs started from your Steam, Epic, GOG, Ubisoft, EA or Xbox library folders (plus any folder you add) that open a window. This catches games right at launch, even in windowed mode.
 
-Like programs, a game only counts while it is in the foreground – Alt+Tab to a browser on the second screen and that screen comes back.
+Like programs, black and off only apply while the game is in the foreground – Alt+Tab to a browser on the second screen and that screen comes back. The color mode stays until the game exits.
 
 ## The tray icon
 

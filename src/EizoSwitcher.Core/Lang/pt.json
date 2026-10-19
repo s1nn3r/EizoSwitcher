@@ -13,7 +13,6 @@
   "Also switch the Windows color profile": "Alternar também o perfil de cor do Windows",
   "Appearance": "Aspeto",
   "Applies while the game is in the foreground. Program rules take precedence.": "Aplica-se enquanto o jogo estiver em primeiro plano. As regras de programas têm prioridade.",
-  "As soon as one of these programs is in the foreground, the displays switch as configured. When you switch to another program or it exits, the defaults apply again. \"—\" leaves a display unchanged. Grey rows refer to a color mode or display that does not exist (anymore).": "Assim que um destes programas está em primeiro plano, os ecrãs mudam conforme configurado. Quando muda para outro programa ou este termina, voltam a aplicar-se as predefinições. \"—\" deixa um ecrã inalterado. As linhas a cinzento referem-se a um modo de cor ou ecrã que (já) não existe.",
   "Automatic (no ColorNavigator profile found)": "Automático (nenhum perfil do ColorNavigator encontrado)",
   "Automatic switching active": "Mudança automática ativa",
   "Automatic switching paused": "Mudança automática em pausa",
@@ -177,5 +176,8 @@
   "yes": "sim",
   "{0} is not connected": "{0} não está ligado",
   "current": "atual",
-  "(disabled on the monitor)": "(desativado no monitor)"
+  "(disabled on the monitor)": "(desativado no monitor)",
+  "As soon as one of these programs is in the foreground, the displays switch as configured. The color mode stays until the program exits or another listed program or game comes to the front (configurable under General); black and off only apply while it is in the foreground. \"—\" leaves a display unchanged. Grey rows refer to a color mode or display that does not exist (anymore).": "Assim que um destes programas estiver em primeiro plano, os ecrãs mudam conforme configurado. O modo de cor mantém-se até o programa ser fechado ou outro programa da lista ou um jogo passar para primeiro plano (configurável em Geral); preto e desligado só se aplicam enquanto estiver em primeiro plano. \"—\" deixa o ecrã inalterado. As linhas cinzentas referem-se a um modo de cor ou ecrã que (já) não existe.",
+  "Keep the color mode until the program exits": "Manter o modo de cor até o programa ser fechado",
+  "When off, the defaults apply as soon as another window becomes active. Black and off always apply only in the foreground.": "Desligado: as predefinições voltam a aplicar-se assim que outra janela fica ativa. Preto e desligado aplicam-se sempre apenas em primeiro plano."
 }

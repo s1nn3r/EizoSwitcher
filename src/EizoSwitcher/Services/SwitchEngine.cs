@@ -10,9 +10,10 @@ public interface IBlackout
 }
 
 /// <summary>
-/// Decides per display what should be active and applies it. Only the program in the <b>foreground</b> counts:
-/// its rule applies; if it is a game, the game settings apply; otherwise the defaults. Clicking taskbar, desktop
-/// or start menu keeps the current state. Reacts immediately to foreground changes (WinEvent hook) and polls
+/// Decides per display what should be active and applies it. The program in the <b>foreground</b> counts:
+/// its rule applies; if it is a game, the game settings apply; otherwise the defaults. With "keep until exit" the
+/// color modes of the last program with its own rule (or game) stay while it runs in the background; black/off
+/// only apply while it is in front. Clicking taskbar, desktop or start menu keeps the current state. Reacts immediately to foreground changes (WinEvent hook) and polls
 /// as a fallback. Only switches when the desired action changes, so manual changes are kept until then.
 /// </summary>
 [SupportedOSPlatform("windows")]
@@ -32,6 +33,8 @@ public sealed class SwitchEngine : IDisposable
     private DateTime nextTopologyCheck_;
     private int pollFailures_;
     private ForegroundApp? app_;
+    private ForegroundApp? owner_;   // last program with its own rule or a game – keeps its color modes while running
+    private string? ownerGame_;
 
     public SwitchEngine(DisplayService displays, IBlackout blackout, AppSettings settings)
     {
@@ -122,6 +125,12 @@ public sealed class SwitchEngine : IDisposable
         var rules = app_ == null ? [] : s.Rules.Where(r => r.Enabled && Matches(r, app_)).ToList();
         string? game = app_ != null && s.Games.Enabled ? Games.Detect(app_, s.Games) : null;
 
+        // a program with its own rule (or a game) takes over; it keeps its color modes until it exits
+        if (rules.Count > 0 || game != null) (owner_, ownerGame_) = (app_, game);
+        else if (owner_ != null && (!s.KeepModesUntilExit || !ForegroundWatcher.IsRunning(owner_.Pid))) (owner_, ownerGame_) = (null, null);
+        bool background = owner_ != null && owner_.Pid != app_?.Pid;
+        var ownerRules = background ? s.Rules.Where(r => r.Enabled && Matches(r, owner_!)).ToList() : [];
+
         // displays we disconnected are no longer listed by Windows – keep evaluating them
         var all = displays_.Displays.ToList();
         foreach (var (d, _) in off_.Values) if (all.All(x => x.Id != d.Id)) all.Add(d);
@@ -135,6 +144,8 @@ public sealed class SwitchEngine : IDisposable
                 if (r.Actions.TryGetValue(d.Id, out var a) && a.Length > 0) { action = a; reason = r.Name; break; }
             if (action.Length == 0 && game != null && s.Games.Actions.TryGetValue(d.Id, out var g) && g.Length > 0)
                 (action, reason) = (g, L.T("Spiel: ", "Game: ") + game);
+            if (action.Length == 0 && background)
+                (action, reason) = BackgroundMode(d, ownerRules, s);
             if (action.Length == 0 && s.Defaults.TryGetValue(d.Id, out var def) && def.Length > 0)
                 (action, reason) = (def, L.T("Standard", "Default"));
 
@@ -159,6 +170,17 @@ public sealed class SwitchEngine : IDisposable
         ActiveProgram = app_?.Name;
         Reasons = reasons;
         if (changed) StateChanged?.Invoke();
+    }
+
+    /// <summary>Color mode of the program in the background (black/off only apply in the foreground).</summary>
+    private (string Action, string Reason) BackgroundMode(DisplayInfo d, List<ProcessRule> ownerRules, AppSettings s)
+    {
+        foreach (var r in ownerRules)
+            if (r.Actions.TryGetValue(d.Id, out var a) && a.Length > 0)
+                return DisplayAction.IsMode(a) ? (a, r.Name) : ("", "");
+        if (ownerGame_ != null && s.Games.Actions.TryGetValue(d.Id, out var g) && DisplayAction.IsMode(g))
+            return (g, L.T("Spiel: ", "Game: ") + ownerGame_);
+        return ("", "");
     }
 
     private static bool Matches(ProcessRule r, ForegroundApp app) =>

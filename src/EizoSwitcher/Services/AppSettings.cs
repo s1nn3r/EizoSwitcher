@@ -79,6 +79,8 @@ public sealed class AppSettings
     public int PollIntervalMs { get; set; } = 1500;
     public bool StartWithWindows { get; set; } = true;
     public bool ShowNotifications { get; set; } = true;
+    /// <summary>Keep a program's color modes after switching to another window, until it exits.</summary>
+    public bool KeepModesUntilExit { get; set; } = true;
     public bool AutoCheckUpdates { get; set; } = true;
     public bool AutoInstallUpdates { get; set; }
     public bool Paused { get; set; }

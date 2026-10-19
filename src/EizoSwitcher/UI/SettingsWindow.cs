@@ -213,9 +213,9 @@ internal sealed class SettingsWindow : Window
         table.Children.Add(ruleTable_);
         var card = Ui.Card(new ScrollViewer { Content = table, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled }, new Thickness(8, 12, 8, 8));
 
-        var intro = Ui.Body(L.T("Sobald eines dieser Programme im Vordergrund ist, werden die Bildschirme wie angegeben umgeschaltet. Wechselst du zu einem anderen Programm oder wird es beendet, gilt wieder der Standard. " +
+        var intro = Ui.Body(L.T("Sobald eines dieser Programme im Vordergrund ist, werden die Bildschirme wie angegeben umgeschaltet. Der Farbmodus bleibt, bis das Programm beendet wird oder ein anderes eingetragenes Programm oder Spiel nach vorne kommt (einstellbar unter Allgemein); Schwarz und Aus gelten nur, solange es im Vordergrund ist. " +
                                 "„—“ lässt einen Bildschirm unverändert. Graue Zeilen verweisen auf einen Farbmodus oder Bildschirm, den es nicht (mehr) gibt.",
-                                "As soon as one of these programs is in the foreground, the displays switch as configured. When you switch to another program or it exits, the defaults apply again. " +
+                                "As soon as one of these programs is in the foreground, the displays switch as configured. The color mode stays until the program exits or another listed program or game comes to the front (configurable under General); black and off only apply while it is in the foreground. " +
                                 "\"—\" leaves a display unchanged. Grey rows refer to a color mode or display that does not exist (anymore)."), secondary: true);
         intro.Margin = new Thickness(0, 0, 0, 14);
 
@@ -613,7 +613,7 @@ internal sealed class SettingsWindow : Window
     // ================================================================= General
 
     private ComboBox language_ = null!, theme_ = null!;
-    private CheckBox autostart_ = null!, notify_ = null!, profiles_ = null!, autoCheck_ = null!, autoInstall_ = null!;
+    private CheckBox autostart_ = null!, notify_ = null!, keep_ = null!, profiles_ = null!, autoCheck_ = null!, autoInstall_ = null!;
     private ComboBox poll_ = null!;
 
     private UIElement GeneralPage()
@@ -624,6 +624,7 @@ internal sealed class SettingsWindow : Window
         theme_ = Ui.Combo([new("", L.T("Wie Windows", "Same as Windows")), new("light", L.T("Hell", "Light")), new("dark", L.T("Dunkel", "Dark"))], work_.Theme, 220, Changed);
         autostart_ = Ui.Toggle(work_.StartWithWindows, Changed);
         notify_ = Ui.Toggle(work_.ShowNotifications, Changed);
+        keep_ = Ui.Toggle(work_.KeepModesUntilExit, Changed);
         profiles_ = Ui.Toggle(work_.SwitchColorProfiles, Changed);
         poll_ = Ui.Combo(new[] { 500, 1000, 1500, 2000, 3000, 5000 }.Select(v => new Opt(v.ToString(), $"{v} ms")), work_.PollIntervalMs.ToString(), 160, Changed);
         autoCheck_ = Ui.Toggle(work_.AutoCheckUpdates, Changed);
@@ -639,6 +640,9 @@ internal sealed class SettingsWindow : Window
             Ui.Section(L.T("Start und Verhalten", "Startup and behavior")),
             Ui.Setting(Icons.Power, L.T("Mit Windows starten", "Start with Windows"), null, autostart_),
             Ui.Setting(Icons.Bell, L.T("Beim Umschalten kurz benachrichtigen", "Show a short notification when switching"), null, notify_),
+            Ui.Setting(Icons.Apps, L.T("Farbmodus behalten, bis das Programm beendet wird", "Keep the color mode until the program exits"),
+                L.T("Ausgeschaltet gilt sofort wieder der Standard, sobald ein anderes Fenster aktiv wird. Schwarz und Aus gelten immer nur im Vordergrund.",
+                    "When off, the defaults apply as soon as another window becomes active. Black and off always apply only in the foreground."), keep_),
             Ui.Setting(Icons.Color, L.T("Windows-Farbprofil mitschalten", "Also switch the Windows color profile"),
                 L.T("Setzt beim Umschalten das passende ICC-Profil als Windows-Standard des Bildschirms, so wie ColorNavigator.",
                     "Sets the matching ICC profile as the display's Windows default when switching, like ColorNavigator does."), profiles_),
@@ -729,6 +733,7 @@ internal sealed class SettingsWindow : Window
             work_.Theme = Ui.Token(theme_);
             work_.StartWithWindows = autostart_.IsChecked == true;
             work_.ShowNotifications = notify_.IsChecked == true;
+            work_.KeepModesUntilExit = keep_.IsChecked == true;
             work_.SwitchColorProfiles = profiles_.IsChecked == true;
             work_.PollIntervalMs = int.TryParse(Ui.Token(poll_), out int ms) ? ms : 1500;
             work_.AutoCheckUpdates = autoCheck_.IsChecked == true;

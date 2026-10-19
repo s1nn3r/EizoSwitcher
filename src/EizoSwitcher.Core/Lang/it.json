@@ -13,7 +13,6 @@
   "Also switch the Windows color profile": "Cambia anche il profilo colore di Windows",
   "Appearance": "Aspetto",
   "Applies while the game is in the foreground. Program rules take precedence.": "Si applica mentre il gioco è in primo piano. Le regole dei programmi hanno la precedenza.",
-  "As soon as one of these programs is in the foreground, the displays switch as configured. When you switch to another program or it exits, the defaults apply again. \"—\" leaves a display unchanged. Grey rows refer to a color mode or display that does not exist (anymore).": "Non appena uno di questi programmi è in primo piano, gli schermi cambiano come configurato. Quando passi a un altro programma o questo viene chiuso, tornano le impostazioni predefinite. \"—\" lascia invariato uno schermo. Le righe grigie si riferiscono a una modalità colore o a uno schermo che non esiste (più).",
   "Automatic (no ColorNavigator profile found)": "Automatico (nessun profilo ColorNavigator trovato)",
   "Automatic switching active": "Cambio automatico attivo",
   "Automatic switching paused": "Cambio automatico in pausa",
@@ -177,5 +176,8 @@
   "yes": "sì",
   "{0} is not connected": "{0} non è collegato",
   "current": "attuale",
-  "(disabled on the monitor)": "(disattivato sul monitor)"
+  "(disabled on the monitor)": "(disattivato sul monitor)",
+  "As soon as one of these programs is in the foreground, the displays switch as configured. The color mode stays until the program exits or another listed program or game comes to the front (configurable under General); black and off only apply while it is in the foreground. \"—\" leaves a display unchanged. Grey rows refer to a color mode or display that does not exist (anymore).": "Non appena uno di questi programmi è in primo piano, gli schermi vengono commutati come configurato. La modalità colore resta finché il programma non viene chiuso o un altro programma dell'elenco o un gioco passa in primo piano (impostabile in Generale); nero e spento valgono solo finché è in primo piano. «—» lascia lo schermo invariato. Le righe grigie si riferiscono a una modalità colore o a uno schermo che non esiste (più).",
+  "Keep the color mode until the program exits": "Mantieni la modalità colore finché il programma non viene chiuso",
+  "When off, the defaults apply as soon as another window becomes active. Black and off always apply only in the foreground.": "Disattivato: le impostazioni predefinite tornano attive non appena un'altra finestra diventa attiva. Nero e spento valgono sempre solo in primo piano."
 }

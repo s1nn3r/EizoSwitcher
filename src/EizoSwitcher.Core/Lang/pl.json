@@ -13,7 +13,6 @@
   "Also switch the Windows color profile": "Przełączaj również profil kolorów Windows",
   "Appearance": "Wygląd",
   "Applies while the game is in the foreground. Program rules take precedence.": "Obowiązuje, gdy gra jest na pierwszym planie. Reguły programów mają pierwszeństwo.",
-  "As soon as one of these programs is in the foreground, the displays switch as configured. When you switch to another program or it exits, the defaults apply again. \"—\" leaves a display unchanged. Grey rows refer to a color mode or display that does not exist (anymore).": "Gdy tylko jeden z tych programów znajdzie się na pierwszym planie, ekrany przełączają się zgodnie z ustawieniami. Po przejściu do innego programu lub jego zamknięciu znów obowiązują ustawienia domyślne. „—” pozostawia ekran bez zmian. Szare wiersze odnoszą się do trybu kolorów lub ekranu, którego (już) nie ma.",
   "Automatic (no ColorNavigator profile found)": "Automatycznie (nie znaleziono profilu ColorNavigator)",
   "Automatic switching active": "Automatyczne przełączanie aktywne",
   "Automatic switching paused": "Automatyczne przełączanie wstrzymane",
@@ -177,5 +176,8 @@
   "yes": "tak",
   "{0} is not connected": "{0} nie jest podłączony",
   "current": "bieżący",
-  "(disabled on the monitor)": "(wyłączony w monitorze)"
+  "(disabled on the monitor)": "(wyłączony w monitorze)",
+  "As soon as one of these programs is in the foreground, the displays switch as configured. The color mode stays until the program exits or another listed program or game comes to the front (configurable under General); black and off only apply while it is in the foreground. \"—\" leaves a display unchanged. Grey rows refer to a color mode or display that does not exist (anymore).": "Gdy tylko jeden z tych programów znajdzie się na pierwszym planie, ekrany przełączają się zgodnie z konfiguracją. Tryb kolorów pozostaje, dopóki program nie zostanie zamknięty albo na pierwszy plan nie przejdzie inny program z listy lub gra (ustawienie w zakładce Ogólne); czarny ekran i wyłączenie działają tylko, gdy program jest na pierwszym planie. „—” pozostawia ekran bez zmian. Szare wiersze odnoszą się do trybu kolorów lub ekranu, który (już) nie istnieje.",
+  "Keep the color mode until the program exits": "Zachowaj tryb kolorów do zamknięcia programu",
+  "When off, the defaults apply as soon as another window becomes active. Black and off always apply only in the foreground.": "Wyłączone: ustawienia domyślne wracają, gdy tylko aktywne stanie się inne okno. Czarny ekran i wyłączenie działają zawsze tylko na pierwszym planie."
 }
