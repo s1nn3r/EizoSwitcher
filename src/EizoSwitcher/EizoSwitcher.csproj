@@ -11,7 +11,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationIcon>Assets\EizoSwitcher.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.3.2</Version>
+    <Version>0.3.3</Version>
     <Product>EizoSwitcher</Product>
     <Authors>Marc Breuer</Authors>
     <Copyright>© 2026 Marc Breuer</Copyright>
