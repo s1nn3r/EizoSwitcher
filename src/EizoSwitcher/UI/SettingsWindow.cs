@@ -24,7 +24,8 @@ internal sealed class SettingsWindow : Window
         public required Dictionary<string, ComboBox> Actions;
     }
 
-    private const double NameWidth = 230, PathWidth = 46, ColWidth = 158;
+    // name and display columns shrink down to their minimum before the table scrolls sideways
+    private const double NameWidth = 230, NameMin = 140, PathWidth = 46, ColWidth = 158, ColMin = 112, ColGap = 10;
 
     private readonly DisplayService displays_;
     private readonly GameDetector games_;
@@ -211,7 +212,12 @@ internal sealed class SettingsWindow : Window
         table.Children.Add(header);
         if (ruleTable_.Parent is Panel previous) previous.Children.Remove(ruleTable_); // page is rebuilt when displays change
         table.Children.Add(ruleTable_);
-        var card = Ui.Card(new ScrollViewer { Content = table, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled }, new Thickness(8, 12, 8, 8));
+        var scroll = new ScrollViewer { Content = table, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        table.HorizontalAlignment = HorizontalAlignment.Left;
+        double fixedWidth = 16 + 40 + 36 + PathWidth + 110;
+        scroll.SizeChanged += (_, e) => table.Width = Math.Clamp(e.NewSize.Width,
+            fixedWidth + NameMin + cols_.Count * (ColMin + ColGap), fixedWidth + NameWidth + cols_.Count * (ColWidth + ColGap));
+        var card = Ui.Card(scroll, new Thickness(8, 12, 8, 8));
 
         var intro = Ui.Body(L.T("Sobald eines dieser Programme im Vordergrund ist, werden die Bildschirme wie angegeben umgeschaltet. Der Farbmodus bleibt, bis das Programm beendet wird oder ein anderes eingetragenes Programm oder Spiel nach vorne kommt (einstellbar unter Allgemein); Schwarz und Aus gelten nur, solange es im Vordergrund ist. " +
                                 "„—“ lässt einen Bildschirm unverändert. Graue Zeilen verweisen auf einen Farbmodus oder Bildschirm, den es nicht (mehr) gibt.",
@@ -233,9 +239,12 @@ internal sealed class SettingsWindow : Window
 
     private void DefineColumns(Grid g)
     {
-        foreach (var w in new[] { 40.0, 36, NameWidth, PathWidth })
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
-        foreach (var _ in cols_) g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ColWidth + 10) });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(NameWidth, GridUnitType.Star), MinWidth = NameMin, MaxWidth = NameWidth });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(PathWidth) });
+        foreach (var _ in cols_)
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ColWidth + ColGap, GridUnitType.Star), MinWidth = ColMin + ColGap, MaxWidth = ColWidth + ColGap });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
     }
 
@@ -243,6 +252,8 @@ internal sealed class SettingsWindow : Window
     {
         var grid = new Grid();
         DefineColumns(grid);
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // exe name under the name box
         void Put(int col, UIElement e) { Grid.SetColumn(e, col); grid.Children.Add(e); }
 
         var enabled = new CheckBox { IsChecked = rule.Enabled, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Left, ToolTip = L.T("Regel aktiv", "Rule enabled"), MinWidth = 0, Padding = new Thickness(0) };
@@ -252,13 +263,14 @@ internal sealed class SettingsWindow : Window
             ? new System.Windows.Controls.Image { Source = img, Width = 22, Height = 22, VerticalAlignment = VerticalAlignment.Center }
             : Dim(Ui.Icon(Icons.Apps, 20)));
 
-        var name = new System.Windows.Controls.TextBox { Text = rule.Name, VerticalAlignment = VerticalAlignment.Center };
+        var name = new System.Windows.Controls.TextBox { Text = rule.Name, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0), ToolTip = rule.ExePath ?? rule.ExeName };
         var exe = Ui.Caption(rule.ExeName, false);
-        exe.Margin = new Thickness(2, 2, 0, 0);
-        var nameCell = new StackPanel { Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = rule.ExePath ?? rule.ExeName };
-        nameCell.Children.Add(name);
-        nameCell.Children.Add(exe);
-        Put(2, nameCell);
+        exe.Margin = new Thickness(2, 2, 12, 0);
+        exe.TextTrimming = TextTrimming.CharacterEllipsis;
+        exe.ToolTip = rule.ExePath ?? rule.ExeName;
+        Put(2, name);
+        Grid.SetRow(exe, 1);
+        Put(2, exe);
         var matchPath = new CheckBox { IsChecked = rule.MatchPath, IsEnabled = !string.IsNullOrEmpty(rule.ExePath), VerticalAlignment = VerticalAlignment.Center, ToolTip = rule.ExePath, MinWidth = 0, Padding = new Thickness(0) };
         Put(3, matchPath);
 
@@ -267,7 +279,8 @@ internal sealed class SettingsWindow : Window
         for (int i = 0; i < cols_.Count; i++)
         {
             var box = Ui.Combo(Options(cols_[i], special: true), rule.Actions.GetValueOrDefault(cols_[i].Id) ?? "", ColWidth, () => { UpdateRowState(row); Changed(); });
-            box.Margin = new Thickness(0, 0, 10, 0);
+            box.Width = double.NaN; // follows the column width
+            box.Margin = new Thickness(0, 0, ColGap, 0);
             actions[cols_[i].Id] = box;
             Put(4 + i, box);
         }

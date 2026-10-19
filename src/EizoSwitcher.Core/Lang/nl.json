@@ -160,7 +160,6 @@
   "Updates": "Updates",
   "Updates come from GitHub releases; the checksum is verified.": "Updates komen van GitHub-releases; de controlesom wordt gecontroleerd.",
   "Uses the list Windows keeps for Game Mode.": "Gebruikt de lijst die Windows bijhoudt voor de Spelmodus.",
-  "Version {0} is available – install it from the tray menu.": "Versie {0} is beschikbaar – installeer deze via het systeemvakmenu.",
   "Was {0} off just now?": "Was {0} zojuist uit?",
   "While a game is running": "Terwijl een game draait",
   "Windows color profile": "Windows-kleurprofiel",
@@ -179,5 +178,12 @@
   "(disabled on the monitor)": "(uitgeschakeld op de monitor)",
   "As soon as one of these programs is in the foreground, the displays switch as configured. The color mode stays until the program exits or another listed program or game comes to the front (configurable under General); black and off only apply while it is in the foreground. \"—\" leaves a display unchanged. Grey rows refer to a color mode or display that does not exist (anymore).": "Zodra een van deze programma's op de voorgrond staat, schakelen de beeldschermen zoals ingesteld. De kleurmodus blijft totdat het programma wordt afgesloten of een ander vermeld programma of spel naar de voorgrond komt (instelbaar onder Algemeen); zwart en uit gelden alleen zolang het op de voorgrond staat. \"—\" laat een beeldscherm ongewijzigd. Grijze rijen verwijzen naar een kleurmodus of beeldscherm dat niet (meer) bestaat.",
   "Keep the color mode until the program exits": "Kleurmodus behouden totdat het programma wordt afgesloten",
-  "When off, the defaults apply as soon as another window becomes active. Black and off always apply only in the foreground.": "Uit: de standaardinstellingen gelden weer zodra een ander venster actief wordt. Zwart en uit gelden altijd alleen op de voorgrond."
+  "When off, the defaults apply as soon as another window becomes active. Black and off always apply only in the foreground.": "Uit: de standaardinstellingen gelden weer zodra een ander venster actief wordt. Zwart en uit gelden altijd alleen op de voorgrond.",
+  "EizoSwitcher {0} is available": "EizoSwitcher {0} is beschikbaar",
+  "Later": "Later",
+  "Update available": "Update beschikbaar",
+  "Update now": "Nu bijwerken",
+  "Version {0} is available – click here or use the tray menu to install it.": "Versie {0} is beschikbaar – klik hier of gebruik het systeemvakmenu om te installeren.",
+  "View on GitHub": "Bekijken op GitHub",
+  "You have version {0}. Update now? EizoSwitcher restarts by itself afterwards.": "Je hebt versie {0}. Nu bijwerken? EizoSwitcher start daarna vanzelf opnieuw."
 }

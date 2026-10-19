@@ -160,7 +160,6 @@
   "Updates": "Aktualizacje",
   "Updates come from GitHub releases; the checksum is verified.": "Aktualizacje pochodzą z wydań w serwisie GitHub; suma kontrolna jest weryfikowana.",
   "Uses the list Windows keeps for Game Mode.": "Korzysta z listy, którą Windows prowadzi dla Trybu gry.",
-  "Version {0} is available – install it from the tray menu.": "Dostępna jest wersja {0} – zainstaluj ją z menu w zasobniku.",
   "Was {0} off just now?": "Czy {0} był przed chwilą wyłączony?",
   "While a game is running": "Gdy działa gra",
   "Windows color profile": "Profil kolorów Windows",
@@ -179,5 +178,12 @@
   "(disabled on the monitor)": "(wyłączony w monitorze)",
   "As soon as one of these programs is in the foreground, the displays switch as configured. The color mode stays until the program exits or another listed program or game comes to the front (configurable under General); black and off only apply while it is in the foreground. \"—\" leaves a display unchanged. Grey rows refer to a color mode or display that does not exist (anymore).": "Gdy tylko jeden z tych programów znajdzie się na pierwszym planie, ekrany przełączają się zgodnie z konfiguracją. Tryb kolorów pozostaje, dopóki program nie zostanie zamknięty albo na pierwszy plan nie przejdzie inny program z listy lub gra (ustawienie w zakładce Ogólne); czarny ekran i wyłączenie działają tylko, gdy program jest na pierwszym planie. „—” pozostawia ekran bez zmian. Szare wiersze odnoszą się do trybu kolorów lub ekranu, który (już) nie istnieje.",
   "Keep the color mode until the program exits": "Zachowaj tryb kolorów do zamknięcia programu",
-  "When off, the defaults apply as soon as another window becomes active. Black and off always apply only in the foreground.": "Wyłączone: ustawienia domyślne wracają, gdy tylko aktywne stanie się inne okno. Czarny ekran i wyłączenie działają zawsze tylko na pierwszym planie."
+  "When off, the defaults apply as soon as another window becomes active. Black and off always apply only in the foreground.": "Wyłączone: ustawienia domyślne wracają, gdy tylko aktywne stanie się inne okno. Czarny ekran i wyłączenie działają zawsze tylko na pierwszym planie.",
+  "EizoSwitcher {0} is available": "EizoSwitcher {0} jest dostępny",
+  "Later": "Później",
+  "Update available": "Dostępna aktualizacja",
+  "Update now": "Aktualizuj teraz",
+  "Version {0} is available – click here or use the tray menu to install it.": "Dostępna jest wersja {0} – kliknij tutaj lub użyj menu w zasobniku, aby ją zainstalować.",
+  "View on GitHub": "Zobacz na GitHubie",
+  "You have version {0}. Update now? EizoSwitcher restarts by itself afterwards.": "Masz wersję {0}. Zaktualizować teraz? EizoSwitcher uruchomi się potem ponownie sam."
 }

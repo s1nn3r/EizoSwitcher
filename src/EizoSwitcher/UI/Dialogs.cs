@@ -32,8 +32,9 @@ internal sealed class ProcessPickerWindow : Window
         list_.ItemTemplate = null;
         list_.MouseDoubleClick += (_, _) => Accept();
 
-        var top = Ui.Row(0, Ui.Icon(Icons.Search), search_, windowsOnly_, Ui.Button(L.T("Aktualisieren", "Refresh"), Load, Icons.Refresh));
+        var top = Ui.Row(10, Ui.Icon(Icons.Search), search_, windowsOnly_, Ui.Button(L.T("Aktualisieren", "Refresh"), Load, Icons.Refresh));
         top.Margin = new Thickness(0, 0, 0, 8);
+        windowsOnly_.Margin = new Thickness(20, 0, 0, 0);
         top.Children[^1].SetValue(MarginProperty, new Thickness(16, 0, 0, 0));
         var hint = Ui.Caption(L.T("Mehrfachauswahl per Klick. Tipp: Starte das Programm vorher, damit es hier erscheint.",
                                   "Click to select several. Tip: start the program first so it shows up here."));
@@ -106,12 +107,58 @@ internal sealed class ProcessPickerWindow : Window
             UIElement icon = img != null
                 ? new System.Windows.Controls.Image { Source = img, Width = 28, Height = 28 }
                 : Dim(Ui.Icon(Icons.Apps, 24));
-            var text = new StackPanel { Margin = new Thickness(12, 0, 0, 0) };
+            var text = new StackPanel();
             text.Children.Add(Ui.Body(e.Description, wrap: false));
             text.Children.Add(Ui.Caption(e.WindowTitle.Length > 0 ? $"{e.ExeName}  ·  {e.WindowTitle}" : e.ExeName, false));
-            list_.Items.Add(new System.Windows.Controls.ListViewItem { Content = Ui.Row(0, icon, text), Tag = e, ToolTip = e.Path ?? e.ExeName, Padding = new Thickness(8, 6, 8, 6) });
+            list_.Items.Add(new System.Windows.Controls.ListViewItem { Content = Ui.Row(14, icon, text), Tag = e, ToolTip = e.Path ?? e.ExeName, Padding = new Thickness(8, 6, 8, 6) });
         }
     }
+}
+
+/// <summary>Small yes/no question in the app's style (optional details, e.g. release notes, and a link button).</summary>
+internal sealed class ConfirmWindow : Window
+{
+    internal ConfirmWindow(string title, string heading, string text, string? details, string yes, string no, (string Text, Action Click)? link)
+    {
+        Title = title;
+        Icon = Ui.AppIcon;
+        Width = 520;
+        SizeToContent = SizeToContent.Height;
+        ResizeMode = ResizeMode.NoResize;
+        WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        Topmost = true; // asked from the tray: no owner window to come up with
+
+        var body = new StackPanel { Margin = new Thickness(24, 16, 24, 20) };
+        body.Children.Add(new TextBlock { Text = heading, FontSize = 20, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
+        body.Children.Add(new TextBlock { Text = text, FontSize = 14, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) });
+        if (!string.IsNullOrWhiteSpace(details))
+        {
+            var notes = Ui.Body(details, secondary: true);
+            notes.Margin = new Thickness(12, 10, 12, 10);
+            var card = Ui.Card(new ScrollViewer { Content = notes, MaxHeight = 260, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, new Thickness(0));
+            card.Margin = new Thickness(0, 14, 0, 0);
+            body.Children.Add(card);
+        }
+
+        var buttons = new DockPanel { Margin = new Thickness(0, 20, 0, 0), LastChildFill = false };
+        var right = Ui.Row(8, Ui.Button(no, () => DialogResult = false), Ui.Button(yes, () => DialogResult = true, primary: true));
+        DockPanel.SetDock(right, Dock.Right);
+        buttons.Children.Add(right);
+        if (link is { } l) buttons.Children.Add(Ui.Button(l.Text, l.Click));
+        body.Children.Add(buttons);
+
+        Content = body;
+        PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) DialogResult = false; };
+    }
+
+    public static bool Ask(string title, string heading, string text, string? details, string yes, string no, (string, Action)? link = null) =>
+        new ConfirmWindow(title, heading, text, details, yes, no, link).ShowDialog() == true;
+
+    /// <summary>Markdown (release notes) as plain text.</summary>
+    public static string PlainText(string markdown) =>
+        string.Join("\n", markdown.Replace("\r", "").Split('\n')
+            .Select(l => l.TrimStart('#', ' ').Replace("**", "").Replace("`", ""))
+            .Select(l => l.StartsWith("- ") ? "•  " + l[2..] : l)).Trim();
 }
 
 /// <summary>Finds out how a display can be turned off: tries each method for a few seconds and asks.</summary>

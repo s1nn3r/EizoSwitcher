@@ -160,7 +160,6 @@
   "Updates": "Aggiornamenti",
   "Updates come from GitHub releases; the checksum is verified.": "Gli aggiornamenti provengono dalle release di GitHub; il checksum viene verificato.",
   "Uses the list Windows keeps for Game Mode.": "Usa l'elenco che Windows gestisce per la Modalità gioco.",
-  "Version {0} is available – install it from the tray menu.": "La versione {0} è disponibile – installala dal menu dell'area di notifica.",
   "Was {0} off just now?": "{0} era spento poco fa?",
   "While a game is running": "Mentre è in esecuzione un gioco",
   "Windows color profile": "Profilo colore di Windows",
@@ -179,5 +178,12 @@
   "(disabled on the monitor)": "(disattivato sul monitor)",
   "As soon as one of these programs is in the foreground, the displays switch as configured. The color mode stays until the program exits or another listed program or game comes to the front (configurable under General); black and off only apply while it is in the foreground. \"—\" leaves a display unchanged. Grey rows refer to a color mode or display that does not exist (anymore).": "Non appena uno di questi programmi è in primo piano, gli schermi vengono commutati come configurato. La modalità colore resta finché il programma non viene chiuso o un altro programma dell'elenco o un gioco passa in primo piano (impostabile in Generale); nero e spento valgono solo finché è in primo piano. «—» lascia lo schermo invariato. Le righe grigie si riferiscono a una modalità colore o a uno schermo che non esiste (più).",
   "Keep the color mode until the program exits": "Mantieni la modalità colore finché il programma non viene chiuso",
-  "When off, the defaults apply as soon as another window becomes active. Black and off always apply only in the foreground.": "Disattivato: le impostazioni predefinite tornano attive non appena un'altra finestra diventa attiva. Nero e spento valgono sempre solo in primo piano."
+  "When off, the defaults apply as soon as another window becomes active. Black and off always apply only in the foreground.": "Disattivato: le impostazioni predefinite tornano attive non appena un'altra finestra diventa attiva. Nero e spento valgono sempre solo in primo piano.",
+  "EizoSwitcher {0} is available": "EizoSwitcher {0} è disponibile",
+  "Later": "Più tardi",
+  "Update available": "Aggiornamento disponibile",
+  "Update now": "Aggiorna ora",
+  "Version {0} is available – click here or use the tray menu to install it.": "La versione {0} è disponibile: fai clic qui o usa il menu dell'area di notifica per installarla.",
+  "View on GitHub": "Vedi su GitHub",
+  "You have version {0}. Update now? EizoSwitcher restarts by itself afterwards.": "Hai la versione {0}. Aggiornare ora? EizoSwitcher si riavvia da solo al termine."
 }

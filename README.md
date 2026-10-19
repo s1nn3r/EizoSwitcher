@@ -60,7 +60,7 @@ Built and tested with a **CG279X** and a **CS2731** (USB) plus a **FlexScan S172
 
 > If Windows SmartScreen complains about an unknown app: *More info → Run anyway*.
 
-EizoSwitcher starts with Windows from now on (you can turn that off under *General*) and updates itself: it downloads the new setup and installs it silently.
+EizoSwitcher starts with Windows from now on (you can turn that off under *General*) and looks for updates. When there is one, it asks first, then downloads the new setup and installs it silently (or skips the question if you turn on *Install updates without asking*).
 
 <details>
 <summary>Portable version without installer</summary>

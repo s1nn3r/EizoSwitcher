@@ -160,7 +160,6 @@
   "Updates": "Atualizações",
   "Updates come from GitHub releases; the checksum is verified.": "As atualizações provêm das versões no GitHub; a soma de verificação é validada.",
   "Uses the list Windows keeps for Game Mode.": "Utiliza a lista que o Windows mantém para o Modo de Jogo.",
-  "Version {0} is available – install it from the tray menu.": "A versão {0} está disponível – instale-a a partir do menu da área de notificação.",
   "Was {0} off just now?": "{0} esteve desligado agora?",
   "While a game is running": "Enquanto um jogo está em execução",
   "Windows color profile": "Perfil de cor do Windows",
@@ -179,5 +178,12 @@
   "(disabled on the monitor)": "(desativado no monitor)",
   "As soon as one of these programs is in the foreground, the displays switch as configured. The color mode stays until the program exits or another listed program or game comes to the front (configurable under General); black and off only apply while it is in the foreground. \"—\" leaves a display unchanged. Grey rows refer to a color mode or display that does not exist (anymore).": "Assim que um destes programas estiver em primeiro plano, os ecrãs mudam conforme configurado. O modo de cor mantém-se até o programa ser fechado ou outro programa da lista ou um jogo passar para primeiro plano (configurável em Geral); preto e desligado só se aplicam enquanto estiver em primeiro plano. \"—\" deixa o ecrã inalterado. As linhas cinzentas referem-se a um modo de cor ou ecrã que (já) não existe.",
   "Keep the color mode until the program exits": "Manter o modo de cor até o programa ser fechado",
-  "When off, the defaults apply as soon as another window becomes active. Black and off always apply only in the foreground.": "Desligado: as predefinições voltam a aplicar-se assim que outra janela fica ativa. Preto e desligado aplicam-se sempre apenas em primeiro plano."
+  "When off, the defaults apply as soon as another window becomes active. Black and off always apply only in the foreground.": "Desligado: as predefinições voltam a aplicar-se assim que outra janela fica ativa. Preto e desligado aplicam-se sempre apenas em primeiro plano.",
+  "EizoSwitcher {0} is available": "O EizoSwitcher {0} está disponível",
+  "Later": "Mais tarde",
+  "Update available": "Atualização disponível",
+  "Update now": "Atualizar agora",
+  "Version {0} is available – click here or use the tray menu to install it.": "A versão {0} está disponível – clique aqui ou use o menu da área de notificação para a instalar.",
+  "View on GitHub": "Ver no GitHub",
+  "You have version {0}. Update now? EizoSwitcher restarts by itself afterwards.": "Tem a versão {0}. Atualizar agora? O EizoSwitcher reinicia sozinho depois."
 }

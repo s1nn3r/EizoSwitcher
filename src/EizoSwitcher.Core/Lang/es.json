@@ -160,7 +160,6 @@
   "Updates": "Actualizaciones",
   "Updates come from GitHub releases; the checksum is verified.": "Las actualizaciones proceden de las versiones publicadas en GitHub; se verifica la suma de comprobación.",
   "Uses the list Windows keeps for Game Mode.": "Usa la lista que Windows mantiene para el Modo de juego.",
-  "Version {0} is available – install it from the tray menu.": "La versión {0} está disponible – instálala desde el menú de la bandeja del sistema.",
   "Was {0} off just now?": "¿Se ha apagado {0} hace un momento?",
   "While a game is running": "Mientras se ejecuta un juego",
   "Windows color profile": "Perfil de color de Windows",
@@ -179,5 +178,12 @@
   "(disabled on the monitor)": "(desactivado en el monitor)",
   "As soon as one of these programs is in the foreground, the displays switch as configured. The color mode stays until the program exits or another listed program or game comes to the front (configurable under General); black and off only apply while it is in the foreground. \"—\" leaves a display unchanged. Grey rows refer to a color mode or display that does not exist (anymore).": "En cuanto uno de estos programas está en primer plano, las pantallas cambian según lo configurado. El modo de color se mantiene hasta que el programa se cierra u otro programa de la lista o un juego pasa a primer plano (configurable en General); negro y apagado solo se aplican mientras está en primer plano. «—» deja la pantalla sin cambios. Las filas grises hacen referencia a un modo de color o una pantalla que (ya) no existe.",
   "Keep the color mode until the program exits": "Mantener el modo de color hasta que se cierre el programa",
-  "When off, the defaults apply as soon as another window becomes active. Black and off always apply only in the foreground.": "Desactivado: en cuanto otra ventana pasa a estar activa, vuelve a aplicarse la configuración predeterminada. Negro y apagado solo se aplican en primer plano."
+  "When off, the defaults apply as soon as another window becomes active. Black and off always apply only in the foreground.": "Desactivado: en cuanto otra ventana pasa a estar activa, vuelve a aplicarse la configuración predeterminada. Negro y apagado solo se aplican en primer plano.",
+  "EizoSwitcher {0} is available": "EizoSwitcher {0} está disponible",
+  "Later": "Más tarde",
+  "Update available": "Actualización disponible",
+  "Update now": "Actualizar ahora",
+  "Version {0} is available – click here or use the tray menu to install it.": "La versión {0} está disponible: haz clic aquí o usa el menú de la bandeja para instalarla.",
+  "View on GitHub": "Ver en GitHub",
+  "You have version {0}. Update now? EizoSwitcher restarts by itself afterwards.": "Tienes la versión {0}. ¿Actualizar ahora? EizoSwitcher se reiniciará solo después."
 }

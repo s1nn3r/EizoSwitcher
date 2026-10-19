@@ -160,7 +160,6 @@
   "Updates": "Mises à jour",
   "Updates come from GitHub releases; the checksum is verified.": "Les mises à jour proviennent des versions publiées sur GitHub ; la somme de contrôle est vérifiée.",
   "Uses the list Windows keeps for Game Mode.": "Utilise la liste tenue par Windows pour le mode Jeu.",
-  "Version {0} is available – install it from the tray menu.": "La version {0} est disponible – installez-la depuis le menu de la zone de notification.",
   "Was {0} off just now?": "L’écran {0} était-il éteint à l’instant ?",
   "While a game is running": "Pendant qu’un jeu est en cours",
   "Windows color profile": "Profil couleur Windows",
@@ -179,5 +178,12 @@
   "(disabled on the monitor)": "(désactivé sur le moniteur)",
   "As soon as one of these programs is in the foreground, the displays switch as configured. The color mode stays until the program exits or another listed program or game comes to the front (configurable under General); black and off only apply while it is in the foreground. \"—\" leaves a display unchanged. Grey rows refer to a color mode or display that does not exist (anymore).": "Dès qu'un de ces programmes est au premier plan, les écrans basculent comme configuré. Le mode couleur reste actif jusqu'à la fermeture du programme ou jusqu'à ce qu'un autre programme de la liste ou un jeu passe au premier plan (réglable dans Général) ; noir et éteint ne s'appliquent que tant qu'il est au premier plan. « — » laisse l'écran inchangé. Les lignes grises renvoient à un mode couleur ou un écran qui n'existe pas (plus).",
   "Keep the color mode until the program exits": "Garder le mode couleur jusqu'à la fermeture du programme",
-  "When off, the defaults apply as soon as another window becomes active. Black and off always apply only in the foreground.": "Désactivé : les réglages par défaut s'appliquent dès qu'une autre fenêtre devient active. Noir et éteint ne s'appliquent toujours qu'au premier plan."
+  "When off, the defaults apply as soon as another window becomes active. Black and off always apply only in the foreground.": "Désactivé : les réglages par défaut s'appliquent dès qu'une autre fenêtre devient active. Noir et éteint ne s'appliquent toujours qu'au premier plan.",
+  "EizoSwitcher {0} is available": "EizoSwitcher {0} est disponible",
+  "Later": "Plus tard",
+  "Update available": "Mise à jour disponible",
+  "Update now": "Mettre à jour",
+  "Version {0} is available – click here or use the tray menu to install it.": "La version {0} est disponible : cliquez ici ou utilisez le menu de la barre des tâches pour l'installer.",
+  "View on GitHub": "Voir sur GitHub",
+  "You have version {0}. Update now? EizoSwitcher restarts by itself afterwards.": "Vous avez la version {0}. Mettre à jour maintenant ? EizoSwitcher redémarre ensuite tout seul."
 }

@@ -53,7 +53,7 @@ internal sealed class TrayApp : IBlackout
             if (e.Button == Forms.MouseButtons.Right) ShowMenu();
             else if (e.Button == Forms.MouseButtons.Left) ShowSettings();
         };
-        tray_.BalloonTipClicked += async (_, _) => { if (pendingUpdate_ != null) await InstallUpdateAsync(pendingUpdate_); };
+        tray_.BalloonTipClicked += async (_, _) => { if (pendingUpdate_ != null && ConfirmUpdate(pendingUpdate_)) await InstallUpdateAsync(pendingUpdate_); };
 
         Autostart.Apply(settings_.StartWithWindows);
         engine_.Start();
@@ -211,9 +211,13 @@ internal sealed class TrayApp : IBlackout
                 return;
             }
             pendingUpdate_ = update;
-            if (settings_.AutoInstallUpdates || interactive) await InstallUpdateAsync(update);
-            else Notify(L.T("Version {0} ist verfügbar – Installation über das Tray-Menü.",
-                            "Version {0} is available – install it from the tray menu.", update.Version));
+            if (interactive)
+            {
+                if (ConfirmUpdate(update)) await InstallUpdateAsync(update);
+            }
+            else if (settings_.AutoInstallUpdates) await InstallUpdateAsync(update);
+            else Notify(L.T("Version {0} ist verfügbar – zum Installieren hier oder im Tray-Menü klicken.",
+                            "Version {0} is available – click here or use the tray menu to install it.", update.Version));
         }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
@@ -221,6 +225,15 @@ internal sealed class TrayApp : IBlackout
             if (interactive) Notify(L.T("Update-Prüfung fehlgeschlagen: ", "Update check failed: ") + e.Message);
         }
     }
+
+    private static bool ConfirmUpdate(UpdateInfo update) => ConfirmWindow.Ask(
+        L.T("Update verfügbar", "Update available"),
+        L.T("EizoSwitcher {0} ist verfügbar", "EizoSwitcher {0} is available", update.Version),
+        L.T("Installiert ist Version {0}. Jetzt aktualisieren? EizoSwitcher startet danach von selbst neu.",
+            "You have version {0}. Update now? EizoSwitcher restarts by itself afterwards.", Updater.Current),
+        ConfirmWindow.PlainText(update.Notes),
+        L.T("Jetzt aktualisieren", "Update now"), L.T("Später", "Later"),
+        (L.T("Auf GitHub ansehen", "View on GitHub"), () => Shell.Open(update.PageUrl)));
 
     private async Task InstallUpdateAsync(UpdateInfo update)
     {

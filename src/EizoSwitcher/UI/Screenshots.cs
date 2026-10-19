@@ -9,7 +9,8 @@ namespace EizoSwitcher.UI;
 
 /// <summary>
 /// Renders the settings pages to PNG for the documentation:
-///   EizoSwitcher.exe --screenshots docs\screenshots\en [--dark|--light]   (language via EIZOSWITCHER_LANG)
+///   EizoSwitcher.exe --screenshots docs\screenshots\en [--dark|--light]   (language via EIZOSWITCHER_LANG,
+///   window width via EIZOSWITCHER_SHOT_WIDTH, e.g. to check how the program table shrinks)
 /// Uses the real displays but demo rules and hides serial numbers.
 /// </summary>
 internal static class Screenshots
@@ -28,7 +29,7 @@ internal static class Screenshots
             Left = -20000,
             Top = -20000,
             ShowInTaskbar = false,
-            Width = 1320,
+            Width = int.TryParse(Environment.GetEnvironmentVariable("EIZOSWITCHER_SHOT_WIDTH"), out int width) ? width : 1320,
             Height = 780,
         };
         w.Show();
@@ -46,6 +47,14 @@ internal static class Screenshots
                 timer.Stop();
                 w.Close();
                 CaptureTrayMenu(displays, Path.Combine(dir, "6-tray-menu.png"));
+                CaptureDialog(new ConfirmWindow(L.T("Update verfügbar", "Update available"),
+                    L.T("EizoSwitcher {0} ist verfügbar", "EizoSwitcher {0} is available", "9.9.9"),
+                    L.T("Installiert ist Version {0}. Jetzt aktualisieren? EizoSwitcher startet danach von selbst neu.",
+                        "You have version {0}. Update now? EizoSwitcher restarts by itself afterwards.", Updater.Current),
+                    ConfirmWindow.PlainText("### What's new\n\n**Something useful.** More text that explains it.\n- first point\n- second point"),
+                    L.T("Jetzt aktualisieren", "Update now"), L.T("Später", "Later"), (L.T("Auf GitHub ansehen", "View on GitHub"), () => { })),
+                    Path.Combine(dir, "7-update.png"), 300);
+                CaptureDialog(new ProcessPickerWindow(), Path.Combine(dir, "8-picker.png"), 2500);
                 displays.Dispose();
                 Environment.Exit(0); // the opened context menu keeps the dispatcher alive otherwise
                 return;
@@ -85,6 +94,26 @@ internal static class Screenshots
                 Capture(child, Path.ChangeExtension(path, null) + "-modes.png");
         }
         menu.IsOpen = false;
+    }
+
+    /// <summary>Shows a dialog off-screen (not modal), renders it and closes it.</summary>
+    private static void CaptureDialog(Window w, string path, int waitMs)
+    {
+        w.WindowStartupLocation = WindowStartupLocation.Manual;
+        w.Left = w.Top = -20000;
+        w.ShowInTaskbar = false;
+        w.Show();
+        var frame = new DispatcherFrame();
+        var t = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(waitMs) };
+        t.Tick += (_, _) => { t.Stop(); frame.Continue = false; };
+        t.Start();
+        Dispatcher.PushFrame(frame);
+        ((Panel)w.Content).SetResourceReference(Panel.BackgroundProperty, "ApplicationBackgroundBrush");
+        var root = (FrameworkElement)VisualTreeHelper.GetChild(w, 0); // whole client area incl. the content's margin
+        root.SetResourceReference(Control.BackgroundProperty, "ApplicationBackgroundBrush");
+        root.UpdateLayout();
+        Capture(root, path);
+        w.Close();
     }
 
     private static void Capture(FrameworkElement root, string path)
