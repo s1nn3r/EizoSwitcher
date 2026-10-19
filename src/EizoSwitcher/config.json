@@ -1,0 +1,31 @@
+{
+  // Abfrageintervall für laufende Prozesse
+  "pollSeconds": 2,
+
+  // Modus, wenn keine Regel greift. Schlüssel: Modell, Seriennummer oder "*"
+  "default": {
+    "CG279X": "CAL",
+    "CS2731": "User"
+  },
+
+  // Erste zutreffende Regel (von oben) gewinnt – pro Monitor.
+  // "processes": Prozessname ohne .exe; "paths": Wildcards auf den vollen Programmpfad.
+  // Modus per Name (siehe "EizoSwitcher modes") oder Index.
+  "rules": [
+    {
+      "name": "Videoschnitt",
+      "processes": [ "Resolve", "Adobe Premiere Pro", "AfterFX" ],
+      "modes": { "CG279X": "BT.709", "CS2731": "sRGB" }
+    },
+    {
+      "name": "Bildbearbeitung",
+      "processes": [ "Photoshop", "Lightroom" ],
+      "modes": { "CG279X": "CAL", "CS2731": "CAL1" }
+    },
+    {
+      "name": "Gaming",
+      "paths": [ "*\\steamapps\\common\\*", "*\\Epic Games\\*" ],
+      "modes": { "*": "sRGB" }
+    }
+  ]
+}
