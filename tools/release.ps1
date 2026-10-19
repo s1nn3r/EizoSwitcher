@@ -85,6 +85,12 @@ if ($Publish) {
     Write-Host "== GitHub release v$Version" -ForegroundColor Cyan
     $notes = Join-Path $out 'notes.md'
     $noteArgs = if (Test-Path $notes) { @('--notes-file', $notes) } else { @('--generate-notes') }
-    gh release create "v$Version" $setup "$setup.sha256" $zip "$zip.sha256" --title "EizoSwitcher $Version" @noteArgs
-    if ($LASTEXITCODE) { throw 'gh release create failed' }
+    # gh reads "file#label" – upload by file name from the output folder, the repo path contains "_C#"
+    Push-Location $out
+    try {
+        $assets = foreach ($f in $setup, $zip) { Split-Path $f -Leaf; (Split-Path $f -Leaf) + '.sha256' }
+        gh release create "v$Version" @assets --title "EizoSwitcher $Version" @noteArgs
+        if ($LASTEXITCODE) { throw 'gh release create failed' }
+    }
+    finally { Pop-Location }
 }
