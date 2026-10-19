@@ -10,7 +10,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <ApplicationDefaultFont>Segoe UI, 9pt</ApplicationDefaultFont>
-    <Version>1.0.0</Version>
+    <Version>0.1.0</Version>
     <Product>EizoSwitcher</Product>
     <Authors>Marc Breuer</Authors>
     <Copyright>© 2026 Marc Breuer</Copyright>
