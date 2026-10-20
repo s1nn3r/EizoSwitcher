@@ -50,16 +50,17 @@ public sealed class GameSettings
     public int ExclusionsVersion { get; set; }
 
     /// <summary>Launchers, helpers and fullscreen apps that are not games.</summary>
-    public static string[] DefaultExclusions => [.. Exclusions1, .. Exclusions2];
+    public static string[] DefaultExclusions => [.. Exclusions1, .. Exclusions2, .. Exclusions3];
 
     /// <summary>Adds default exclusions introduced after this list was created. Returns true if anything changed.</summary>
     public bool UpgradeExclusions()
     {
-        if (ExclusionsVersion >= 2) return false;
+        if (ExclusionsVersion >= 3) return false;
+        IEnumerable<string> added = ExclusionsVersion < 2 ? [.. Exclusions2, .. Exclusions3] : Exclusions3;
         int before = ExcludedProcesses.Count;
-        ExcludedProcesses = [.. ExcludedProcesses.Concat(Exclusions2).DistinctBy(ProcessNames.Normalize)];
+        ExcludedProcesses = [.. ExcludedProcesses.Concat(added).DistinctBy(ProcessNames.Normalize)];
         if (ExcludedProcesses.Count > before) Log.Write($"Never-a-game list: added {ExcludedProcesses.Count - before} new defaults");
-        ExclusionsVersion = 2;
+        ExclusionsVersion = 3;
         return true;
     }
 
@@ -82,6 +83,9 @@ public sealed class GameSettings
         "Spotify", "Notion", "Obsidian", "Photos", "Microsoft.Photos", "Photoshop", "Lightroom", "AfterFX",
         "Adobe Media Encoder", "kodi", "Plex", "Plex HTPC", "ShareX",
     ];
+
+    // 1.0.2: Acrobat and Reader (full screen mode, Ctrl+L)
+    private static readonly string[] Exclusions3 = ["Acrobat", "AcroRd32"];
 }
 
 /// <summary>Last known state of a display, so rules stay editable while it is disconnected.</summary>
