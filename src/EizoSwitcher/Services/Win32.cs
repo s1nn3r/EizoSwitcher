@@ -31,18 +31,24 @@ internal static partial class Win32
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hwnd, out RECT r);
     [DllImport("user32.dll")] private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr hwnd, StringBuilder sb, int max);
+    [DllImport("user32.dll")] private static extern bool IsZoomed(IntPtr hwnd);
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongW")] private static extern int GetWindowLong(IntPtr hwnd, int index);
     [DllImport("shell32.dll")] private static extern int SHQueryUserNotificationState(out int state);
 
     /// <summary>A Direct3D application runs in exclusive fullscreen (QUNS_RUNNING_D3D_FULL_SCREEN).</summary>
     public static bool IsExclusiveFullscreen() => SHQueryUserNotificationState(out int s) == 0 && s == 3;
 
-    /// <summary>The window covers its whole monitor (borderless fullscreen), desktop/taskbar excluded.</summary>
+    /// <summary>The window covers its whole monitor (borderless fullscreen), desktop/taskbar excluded.
+    /// Maximized windows and windows with a title bar don't count: with an auto-hiding taskbar
+    /// they cover the whole monitor too, which would make every maximized app a "game".</summary>
     public static bool IsFullscreenWindow(IntPtr hwnd)
     {
         if (hwnd == IntPtr.Zero) return false;
         var cls = new StringBuilder(64);
         GetClassName(hwnd, cls, cls.Capacity);
         if (cls.ToString() is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd") return false;
+        const int GWL_STYLE = -16, WS_CAPTION = 0x00C00000;
+        if (IsZoomed(hwnd) || (GetWindowLong(hwnd, GWL_STYLE) & WS_CAPTION) == WS_CAPTION) return false;
         if (!GetWindowRect(hwnd, out var r)) return false;
         var mi = new MONITORINFOEX { cbSize = Marshal.SizeOf<MONITORINFOEX>() };
         if (!GetMonitorInfo(MonitorFromWindow(hwnd, 2), ref mi)) return false;
