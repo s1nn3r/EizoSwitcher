@@ -76,10 +76,10 @@ Click *Running program …* and pick the program from the list (it has to be run
 | — | The display is left alone. |
 | A color mode, e.g. `BT.709` | The EIZO switches to this mode. |
 | ■ Black | A black window covers the display. This works with every monitor; click it to get the desktop back. |
-| ⏻ Turn off | The display turns off. Set this up once per display under *Displays → Turn off → Set up …*. |
+| ⏻ Turn off | The display turns off. Set this up once per display under *Displays → Turn off → Set up* |
 
 - The color mode stays until the program exits, even if you click into another program in between. If you want the defaults back as soon as you switch away, turn off *Keep the color mode until the program exits* under *General*. Black and off only last while the program is in front, so a second screen comes back as soon as you click something else.
-- A rule is tied to the exact `.exe` you picked, and its folder is shown under the name. If you have Photoshop 2024 and 2025 installed, you create two rules. Generic names like `launcher.exe` therefore don't match every program that happens to use them.
+- A rule is tied to the exact `.exe` you picked, and its folder is shown under the name. If you have Photoshop 2026 and the Photoshop beta installed, you create two rules. Generic names like `launcher.exe` therefore don't match every program that happens to use them.
 - A grey row refers to a color mode or display that no longer exists, for example after you renamed a mode on the monitor. Hover over it to see why.
 
 ### Games
@@ -87,6 +87,10 @@ Click *Running program …* and pick the program from the list (it has to be run
 ![Games tab](docs/screenshots/en/2-games.png)
 
 Here you choose what each display does while a game is running. I use sRGB on the main display and black on the other one. Program rules take precedence over game detection.
+
+Some programs fill the whole screen without being games, for example a browser or a video player in fullscreen. EizoSwitcher ignores the programs listed under *Never treat as a game* at the bottom of this page. Browsers, video players, code editors, chat apps, Remote Desktop and virtual machines are already on the list. You add a program with *Running program …* or *Choose executable …* and remove it with *Remove* or the Del key. *Reset list* brings back the default entries.
+
+If a program is still mistaken for a game, right-click the tray icon while it's detected and choose *Never treat "…" as a game*.
 
 ### Defaults
 
@@ -100,7 +104,7 @@ The mode each EIZO returns to when none of your programs and no game is in use.
 
 This page lists what EizoSwitcher knows about each display and has buttons to switch the mode by hand and to test black.
 
-*Turn off → Set up …* starts a short wizard. It tries DDC/CI standby, DDC/CI power off and disconnecting the display from the desktop, five seconds each, and asks you whether the display went dark. EizoSwitcher remembers the first method that works. Many monitors, including mine, accept the DDC/CI commands and then ignore them. Disconnecting always works; Windows rearranges the windows for a moment.
+*Turn off → Set up* starts a short wizard. It tries DDC/CI standby, DDC/CI power off and disconnecting the display from the desktop, five seconds each, and asks you whether the display went dark. EizoSwitcher remembers the first method that works. Many monitors, including mine, accept the DDC/CI commands and then ignore them. Disconnecting always works; Windows rearranges the windows for a moment.
 
 For EIZO displays you also pick the color profile per mode here. *Automatic* uses the profile ColorNavigator created for that mode, e.g. `CG279X(12345678)10CAL.icc`. You can choose any installed profile instead, or *Leave unchanged*. Profile switching can be turned off under *General*.
 
@@ -160,7 +164,7 @@ eizoswitch list --json                 machine-readable output
 ## Troubleshooting
 
 - *No EIZO monitor found*: check the USB cable between the monitor's USB upstream port and the PC. ColorNavigator doesn't have to be installed, but it can keep running.
-- *Turn off does nothing*: run *Displays → Turn off → Set up …* for that display. The primary display can't be disconnected and is covered in black instead.
+- *Turn off does nothing*: run *Displays → Turn off → Set up* for that display. The primary display can't be disconnected and is covered in black instead.
 - *The Windows color profile doesn't change*: check *General → Also switch the Windows color profile* and the profile per mode under *Displays*. *Automatic* needs the profiles ColorNavigator creates. If you never used a mode with ColorNavigator, pick its profile by hand.
 - *Updates fail*: EizoSwitcher has to be in a folder you can write to (see Installation). If an update fails, the release page opens so you can update by hand.
 - For anything else, open *General → Show log* and [open an issue](https://github.com/s1nn3r/EizoSwitcher/issues). I'll try to help.

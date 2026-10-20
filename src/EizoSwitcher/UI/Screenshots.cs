@@ -142,8 +142,9 @@ internal static class Screenshots
         }
 
         s.Rules.Add(Rule("DaVinci Resolve", @"C:\Program Files\Blackmagic Design\DaVinci Resolve\Resolve.exe", d => Pick(d, "BT.709", "sRGB") ?? (d.Primary ? null : DisplayAction.Black)));
-        s.Rules.Add(Rule("Adobe Premiere Pro", @"C:\Program Files\Adobe\Adobe Premiere Pro 2025\Adobe Premiere Pro.exe", d => Pick(d, "BT.709", "sRGB")));
-        s.Rules.Add(Rule("Adobe Photoshop", @"C:\Program Files\Adobe\Adobe Photoshop 2025\Photoshop.exe", d => Pick(d, "CAL", "CAL1")));
+        s.Rules.Add(Rule("Adobe Premiere Pro", @"C:\Program Files\Adobe\Adobe Premiere Pro 2026\Adobe Premiere Pro.exe", d => Pick(d, "BT.709", "sRGB")));
+        s.Rules.Add(Rule("Adobe Photoshop 2026", @"C:\Program Files\Adobe\Adobe Photoshop 2026\Photoshop.exe", d => Pick(d, "CAL", "CAL1")));
+        s.Rules.Add(Rule("Adobe Photoshop (Beta)", @"C:\Program Files\Adobe\Adobe Photoshop (Beta)\Photoshop.exe", d => Pick(d, "CAL", "CAL1")));
         s.Rules.Add(Rule("Adobe Lightroom Classic", @"C:\Program Files\Adobe\Adobe Lightroom Classic\Lightroom.exe", d => d.IsEizo ? Pick(d, "CAL", "CAL1") : null));
         s.Rules.Add(Rule(L.T("Altes Werkzeug", "Old tool"), @"C:\Tools\PrintTool\PrintTool.exe", d => d.IsEizo ? "Paper" : null));
         s.Games.Actions = displays.Displays.ToDictionary(d => d.Id, d => d.Primary ? Pick(d, "sRGB") ?? "" : DisplayAction.Off);

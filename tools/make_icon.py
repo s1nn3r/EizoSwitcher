@@ -52,11 +52,13 @@ def swap_badge(d, cx, cy, r, s):
     d.arc(box, 200, 330, fill=BEZEL, width=w)
     d.arc(box, 20, 150, fill=BEZEL, width=w)
     head = 11 * s
-    # arrow heads at the end of each arc (330° and 150°), pointing along the turn direction
+    # arrow heads at the end of each arc (330° and 150°), pointing along the turn direction.
+    # Pillow draws the arc width inward, so the stroke's center line is half a width inside the box.
     import math
+    rc = ar - w / 2
     for ang in (330, 150):
         a = math.radians(ang)
-        px, py = cx + ar * math.cos(a), cy + ar * math.sin(a)
+        px, py = cx + rc * math.cos(a), cy + rc * math.sin(a)
         tx, ty = -math.sin(a), math.cos(a)  # tangent (clockwise)
         nx, ny = math.cos(a), math.sin(a)
         d.polygon([
