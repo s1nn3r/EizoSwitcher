@@ -78,8 +78,6 @@ Click *Running program …* and pick the program from the list (it has to be run
 | ■ Black | A black window covers the display. This works with every monitor; click it to get the desktop back. |
 | ⏻ Turn off | The display turns off. Set this up once per display under *Displays → Turn off → Set up …*. |
 
-A few details:
-
 - The color mode stays until the program exits, even if you click into another program in between. If you want the defaults back as soon as you switch away, turn off *Keep the color mode until the program exits* under *General*. Black and off only last while the program is in front, so a second screen comes back as soon as you click something else.
 - A rule is tied to the exact `.exe` you picked, and its folder is shown under the name. If you have Photoshop 2024 and 2025 installed, you create two rules. Generic names like `launcher.exe` therefore don't match every program that happens to use them.
 - A grey row refers to a color mode or display that no longer exists, for example after you renamed a mode on the monitor. Hover over it to see why.
