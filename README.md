@@ -171,12 +171,8 @@ You need the [.NET 10 SDK](https://dotnet.microsoft.com/download), and for the i
 
 ```
 dotnet build
-.\tools\release.ps1 -Version 1.2.3 -NoSign     # unsigned setup and zip in artifacts\1.2.3
-.\tools\release.ps1 -Version 1.2.3             # signed with Microsoft Artifact Signing
-.\tools\release.ps1 -Version 1.2.3 -Publish    # signed, plus a GitHub release
+.\tools\release.ps1 -Version 1.2.3 -NoSign     # setup and zip in artifacts\1.2.3
 ```
-
-Releases are signed with [Microsoft Artifact Signing](https://learn.microsoft.com/azure/artifact-signing/). The account and certificate profile are in `tools/signing.json`. Signing needs the client tools (`winget install -e --id Microsoft.Azure.ArtifactSigningClientTools`), `az login` and the *Artifact Signing Certificate Profile Signer* role. For builds of your own fork, use `-NoSign` or put your own account into `tools/signing.json`.
 
 | Project | |
 |---|---|
