@@ -1,27 +1,69 @@
 <#
 .SYNOPSIS
-  Builds, optionally signs and publishes an EizoSwitcher release.
+  Builds, signs and optionally publishes an EizoSwitcher release.
 
 .EXAMPLE
-  .\tools\release.ps1 -Version 1.0.0                                   # build + package only
-  .\tools\release.ps1 -Version 1.0.0 -CertThumbprint 0123ABCD...       # + Authenticode signing
-  .\tools\release.ps1 -Version 1.0.0 -CertThumbprint 0123... -Publish  # + GitHub release (needs gh)
+  .\tools\release.ps1 -Version 1.0.0             # build, sign, package
+  .\tools\release.ps1 -Version 1.0.0 -Publish    # + GitHub release (needs gh)
+  .\tools\release.ps1 -Version 1.0.0 -NoSign     # unsigned test build (cannot be published)
 
 .NOTES
   Output: artifacts\<version>\EizoSwitcher-Setup.exe and EizoSwitcher-win-x64.zip (each + .sha256) – the asset names the auto-updater expects.
   Needs Inno Setup 6 (winget install JRSoftware.InnoSetup). Release notes: artifacts\<version>\notes.md (optional).
-  Signing uses signtool from the Windows SDK and a certificate from the current user's store.
+
+  Signing: Microsoft Artifact Signing (account and certificate profile in tools\signing.json).
+    winget install -e --id Microsoft.Azure.ArtifactSigningClientTools
+    az login        (the account needs the "Artifact Signing Certificate Profile Signer" role)
+  Signs both exes, the setup and its uninstaller, timestamps them and verifies every signature.
+  Every published release must be signed: a signed EizoSwitcher only accepts updates from the same publisher.
 #>
 param(
     [Parameter(Mandatory)][ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version,
-    [string]$CertThumbprint,
-    [string]$TimestampUrl = 'http://timestamp.digicert.com',
-    [switch]$Publish
+    [switch]$Publish,
+    [switch]$NoSign
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $out = Join-Path $root "artifacts\$Version"
 $pkg = Join-Path $out 'package'
+if ($Publish -and $NoSign) { throw 'Releases must be signed – -Publish cannot be combined with -NoSign.' }
+
+# ---------------------------------------------------------------- signing setup (checked before building)
+$sign = -not $NoSign
+$timestamp = 'http://timestamp.acs.microsoft.com'
+if ($sign) {
+    $metadata = Join-Path $PSScriptRoot 'signing.json'
+    $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue |
+        Where-Object { $_.Directory.Parent.Name -match '^\d+(\.\d+)+$' } | Sort-Object { [version]$_.Directory.Parent.Name } -Descending | Select-Object -First 1 -ExpandProperty FullName
+    if (-not $signtool) { throw 'signtool.exe not found (install the Windows SDK)' }
+    $dlib = @($env:ARTIFACT_SIGNING_DLIB,
+              "$env:LOCALAPPDATA\Microsoft\MicrosoftArtifactSigningClientTools\Azure.CodeSigning.Dlib.dll",
+              "${env:ProgramFiles(x86)}\Microsoft\ArtifactSigningClientTools\bin\Azure.CodeSigning.Dlib.dll") |
+        Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+    if (-not $dlib) { throw 'Artifact Signing dlib not found (winget install -e --id Microsoft.Azure.ArtifactSigningClientTools)' }
+    az account show --only-show-errors -o none 2>$null
+    if ($LASTEXITCODE) { throw 'Not signed in to Azure – run "az login" first.' }
+    $signArgs = @('sign', '/fd', 'SHA256', '/tr', $timestamp, '/td', 'SHA256', '/dlib', $dlib, '/dmdf', $metadata,
+                  '/d', 'EizoSwitcher', '/du', 'https://github.com/s1nn3r/EizoSwitcher')
+}
+function Sign([string[]]$files) {
+    if (-not $sign) { return }
+    Write-Host "== Signing $(($files | Split-Path -Leaf) -join ', ')" -ForegroundColor Cyan
+    & $signtool @signArgs @files
+    if ($LASTEXITCODE) { throw 'signing failed' }
+}
+function Verify([string[]]$files) {
+    if (-not $sign) { return }
+    foreach ($f in $files) {
+        & $signtool verify /pa /q $f
+        if ($LASTEXITCODE) { throw "signature of $(Split-Path $f -Leaf) is not valid" }
+    }
+}
+function Hash([string]$file) {
+    $h = (Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant()
+    "$h  $(Split-Path $file -Leaf)" | Set-Content "$file.sha256" -NoNewline -Encoding ascii
+}
+
 # start clean, but keep hand-written release notes
 Get-ChildItem $out -Exclude 'notes.md' -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
 New-Item -ItemType Directory -Force $pkg | Out-Null
@@ -43,43 +85,37 @@ if ($LASTEXITCODE) { throw 'publish cli failed' }
 Copy-Item "$out\app\EizoSwitcher.exe", "$out\cli\eizoswitch.exe" $pkg
 Copy-Item "$root\LICENSE" $pkg
 
-$signtool = $null
-if ($CertThumbprint) {
-    $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue |
-        Sort-Object FullName -Descending | Select-Object -First 1
-    if (-not $signtool) { throw 'signtool.exe not found (install the Windows SDK)' }
-}
-function Sign([string[]]$files) {
-    if (-not $signtool) { return }
-    Write-Host "== Signing $($files | Split-Path -Leaf)" -ForegroundColor Cyan
-    & $signtool.FullName sign /sha1 $CertThumbprint /fd sha256 /tr $TimestampUrl /td sha256 `
-        /d EizoSwitcher /du "https://github.com/s1nn3r/EizoSwitcher" @files
-    if ($LASTEXITCODE) { throw 'signing failed' }
-}
-function Hash([string]$file) {
-    $h = (Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant()
-    "$h  $(Split-Path $file -Leaf)" | Set-Content "$file.sha256" -NoNewline -Encoding ascii
-}
-
-Sign "$pkg\EizoSwitcher.exe", "$pkg\eizoswitch.exe"
+$exes = "$pkg\EizoSwitcher.exe", "$pkg\eizoswitch.exe"
+Sign $exes
+Verify $exes
 
 # portable zip (also what versions <= 0.2 update from)
 $zip = Join-Path $out 'EizoSwitcher-win-x64.zip'
 Compress-Archive "$pkg\*" $zip -CompressionLevel Optimal
 Hash $zip
 
-# installer (Inno Setup 6)
+# installer (Inno Setup 6) – Inno signs the uninstaller and the setup itself through the "artifact" sign tool
 Write-Host "== Installer" -ForegroundColor Cyan
 $iscc = @("$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe", "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe") |
     Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) { throw 'Inno Setup 6 not found (winget install JRSoftware.InnoSetup)' }
-& $iscc /Q "/DVersion=$Version" "/DSourceDir=$pkg" "/DOutputDir=$out" "$root\installer\EizoSwitcher.iss"
+$isccArgs = @('/Q', "/DVersion=$Version", "/DSourceDir=$pkg", "/DOutputDir=$out")
+if ($sign) {
+    # $q = quote, $f = file to sign (Inno Setup sign tool syntax)
+    $cmd = ($signArgs | ForEach-Object { if ($_ -match '\s') { '$q' + $_ + '$q' } else { $_ } }) -join ' '
+    $isccArgs += '/DSign', ('/Sartifact=$q' + $signtool + '$q ' + $cmd + ' $f')
+}
+& $iscc @isccArgs "$root\installer\EizoSwitcher.iss"
 if ($LASTEXITCODE) { throw 'installer build failed' }
 $setup = Join-Path $out 'EizoSwitcher-Setup.exe'
-Sign $setup
+Verify $setup
 Hash $setup
 
 Get-ChildItem $pkg, $zip, $setup | Format-Table Name, @{ n = 'MB'; e = { [math]::Round($_.Length / 1MB, 2) } } -AutoSize
+if ($sign) {
+    $signer = (Get-AuthenticodeSignature $setup).SignerCertificate
+    Write-Host "Signed by: $($signer.Subject)" -ForegroundColor Green
+}
 
 if ($Publish) {
     Write-Host "== GitHub release v$Version" -ForegroundColor Cyan

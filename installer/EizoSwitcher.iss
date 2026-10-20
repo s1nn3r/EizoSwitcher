@@ -1,5 +1,5 @@
 ; EizoSwitcher installer (Inno Setup 6) – built by tools\release.ps1:
-;   ISCC.exe /DVersion=1.2.3 /DSourceDir=<package folder> /DOutputDir=<output folder> installer\EizoSwitcher.iss
+;   ISCC.exe /DVersion=1.2.3 /DSourceDir=<package folder> /DOutputDir=<output folder> [/DSign /Sartifact=<signtool command>] installer\EizoSwitcher.iss
 ;
 ; Per-user installation (no admin rights) to %LOCALAPPDATA%\Programs\EizoSwitcher, so the app can update itself.
 ; Silent update: EizoSwitcher-Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS
@@ -46,6 +46,11 @@ SolidCompression=yes
 CloseApplications=force
 RestartApplications=no
 ShowLanguageDialog=auto
+#ifdef Sign
+; release.ps1 passes /DSign and the "artifact" sign tool (Microsoft Artifact Signing): signs setup and uninstaller
+SignTool=artifact
+SignedUninstaller=yes
+#endif
 
 [Languages]
 Name: "en"; MessagesFile: "compiler:Default.isl"

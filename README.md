@@ -39,7 +39,7 @@ ColorNavigator can switch modes – but only when *you* click. There is no "when
 - **Windows color profile included** – together with the mode, EizoSwitcher sets the matching ICC profile as the display's Windows default, so Photoshop & co. color-manage correctly. It uses the profiles ColorNavigator created per mode, or any profile you pick.
 - **Back to normal** – close the program and your defaults apply again. If you change a mode by hand on the monitor, EizoSwitcher respects it until the next program starts or ends.
 - **Lives in the tray** – current mode per display at a glance, manual switching, pause. Settings in the Windows 11 style, light or dark.
-- **Updates itself** from GitHub releases (checksum-verified, signature-checked once releases are signed).
+- **Updates itself** from GitHub releases – checksum-verified, and only installs updates signed by the same publisher.
 - **Command line tool** `eizoswitch` for scripts, hotkeys and Stream Deck buttons.
 - **8 languages** (English, Deutsch, Español, Français, Italiano, Nederlands, Polski, Português) and a **light / dark theme** – both follow Windows or can be set in the app.
 
@@ -58,7 +58,7 @@ Built and tested with a **CG279X** and a **CS2731** (USB) plus a **FlexScan S172
    It installs for your user only (no admin rights needed), adds a start menu entry and shows up under *Settings → Apps* for uninstalling. If the .NET 10 Desktop Runtime is missing, the setup offers the download page.
 2. Start **EizoSwitcher**. The icon appears in the tray, EizoSwitcher reads all your displays, takes over the currently selected modes as your defaults and opens the settings.
 
-> If Windows SmartScreen complains about an unknown app: *More info → Run anyway*.
+> The setup and the program are signed (publisher: *giant Computer Systems*). As a new app, EizoSwitcher still has to build up reputation with Windows SmartScreen – if it warns you anyway: *More info → Run anyway*.
 
 EizoSwitcher starts with Windows from now on (you can turn that off under *General*) and looks for updates. When there is one, it asks first, then downloads the new setup and installs it silently (or skips the question if you turn on *Install updates without asking*).
 
@@ -178,10 +178,12 @@ You need the [.NET 10 SDK](https://dotnet.microsoft.com/download) and, for the i
 
 ```
 dotnet build
-.\tools\release.ps1 -Version 1.2.3                                   # setup + zip in artifacts\1.2.3
-.\tools\release.ps1 -Version 1.2.3 -CertThumbprint <sha1>            # + Authenticode signing
-.\tools\release.ps1 -Version 1.2.3 -CertThumbprint <sha1> -Publish   # + GitHub release
+.\tools\release.ps1 -Version 1.2.3 -NoSign     # unsigned setup + zip in artifacts\1.2.3
+.\tools\release.ps1 -Version 1.2.3             # signed (Microsoft Artifact Signing)
+.\tools\release.ps1 -Version 1.2.3 -Publish    # signed + GitHub release
 ```
+
+Signing uses [Microsoft Artifact Signing](https://learn.microsoft.com/azure/artifact-signing/): the account and certificate profile are in `tools/signing.json`, you need the client tools (`winget install -e --id Microsoft.Azure.ArtifactSigningClientTools`), `az login` and the *Artifact Signing Certificate Profile Signer* role. Builds of your own fork use `-NoSign` – or your own account in `tools/signing.json`.
 
 | Project | |
 |---|---|
