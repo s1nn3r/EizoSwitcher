@@ -89,7 +89,7 @@ $exes = "$pkg\EizoSwitcher.exe", "$pkg\eizoswitch.exe"
 Sign $exes
 Verify $exes
 
-# portable zip (also what versions <= 0.2 update from)
+# portable zip (for use without the setup; such copies update by swapping the exe)
 $zip = Join-Path $out 'EizoSwitcher-win-x64.zip'
 Compress-Archive "$pkg\*" $zip -CompressionLevel Optimal
 Hash $zip
